@@ -1,6 +1,40 @@
-// ====== Datos persistentes ======
-let movimientos = JSON.parse(localStorage.getItem("movimientos")) || [];
-let editIndex = null;
+// script.js (ES MODULE)
+
+// ====== Firebase imports ======
+import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.4/firebase-app.js";
+import {
+  getFirestore,
+  collection,
+  addDoc,
+  doc,
+  updateDoc,
+  deleteDoc,
+  onSnapshot,
+  query,
+  orderBy,
+  serverTimestamp
+} from "https://www.gstatic.com/firebasejs/10.12.4/firebase-firestore.js";
+
+// ====== Si ya inicializaste Firebase en index.html (window.db), lo usamos.
+// Si no, lo inicializamos aquí (robusto).
+const firebaseConfig = {
+  apiKey: "AIzaSyBmRXxzIOr3sevzlXQQDaWKlpEXEB7si1Y",
+  authDomain: "peluqueria-eacca.firebaseapp.com",
+  projectId: "peluqueria-eacca",
+  storageBucket: "peluqueria-eacca.firebasestorage.app",
+  messagingSenderId: "104134229616",
+  appId: "1:104134229616:web:64673e422f16a682fafeb5",
+  measurementId: "G-KF9MGY7YVV"
+};
+
+const db = window.db || getFirestore(initializeApp(firebaseConfig));
+
+// ====== Estado ======
+let movimientos = []; // [{id, fecha, tipo, concepto, trabajador, gratis, importe}]
+let editId = null;
+
+// Colección Firestore
+const MOVS_COL = collection(db, "movimientos");
 
 // ====== DOM ======
 const form = document.getElementById("form");
@@ -34,32 +68,53 @@ function formatoFecha(fecha) {
 }
 
 function mesKey(fecha) {
-  // "YYYY-MM-DD" -> "YYYY-MM"
-  return (fecha || "").slice(0, 7);
+  return (fecha || "").slice(0, 7); // YYYY-MM
 }
 
 function calcularNeto(m) {
-  // Neto: 40% normal / 100% si gratis
   return m.gratis ? m.importe : m.importe * 0.4;
 }
 
-// ====== Inicialización ======
+function eur(n) {
+  return Number(n || 0).toFixed(2) + " €";
+}
+
+// ====== Init UI ======
 fechaEl.value = fechaHoy();
 
-// Por defecto: mes actual en el filtro (si existe)
 if (mesFiltroEl) {
   const now = new Date();
   const yyyy = now.getFullYear();
   const mm = String(now.getMonth() + 1).padStart(2, "0");
   mesFiltroEl.value = `${yyyy}-${mm}`;
-
-  mesFiltroEl.addEventListener("change", () => {
-    renderResumenTrabajadores();
-  });
+  mesFiltroEl.addEventListener("change", () => renderResumenTrabajadores());
 }
 
-// ====== Form submit ======
-form.addEventListener("submit", (e) => {
+// ====== Tiempo real Firestore ======
+const q = query(MOVS_COL, orderBy("fecha", "asc"), orderBy("createdAt", "asc"));
+
+onSnapshot(
+  q,
+  (snap) => {
+    movimientos = snap.docs.map((d) => ({ id: d.id, ...d.data() }));
+
+    // Asegurar tipos
+    movimientos = movimientos.map((m) => ({
+      ...m,
+      gratis: Boolean(m.gratis),
+      importe: Number(m.importe || 0)
+    }));
+
+    render();
+  },
+  (err) => {
+    console.error("Error onSnapshot:", err);
+    alert("Error conectando con Firestore. Revisa reglas/permiso o conexión.");
+  }
+);
+
+// ====== Crear / Editar ======
+form.addEventListener("submit", async (e) => {
   e.preventDefault();
 
   const tipo = tipoEl.value;
@@ -70,109 +125,104 @@ form.addEventListener("submit", (e) => {
     return;
   }
 
+  const importe = Math.abs(parseFloat(importeEl.value));
+  if (Number.isNaN(importe)) {
+    alert("Importe no válido");
+    return;
+  }
+
   const mov = {
     fecha: fechaEl.value,
     tipo: tipoEl.value,
     concepto: conceptoEl.value,
     trabajador: trabajadorEl.value || "",
     gratis: gratisEl.checked,
-    importe: Math.abs(parseFloat(importeEl.value))
+    importe
   };
 
-  if (Number.isNaN(mov.importe)) {
-    alert("Importe no válido");
-    return;
-  }
+  try {
+    if (editId === null) {
+      await addDoc(MOVS_COL, {
+        ...mov,
+        createdAt: serverTimestamp(),
+        updatedAt: serverTimestamp()
+      });
+    } else {
+      await updateDoc(doc(db, "movimientos", editId), {
+        ...mov,
+        updatedAt: serverTimestamp()
+      });
+      editId = null;
+    }
 
-  if (editIndex === null) {
-    movimientos.push(mov);
-  } else {
-    movimientos[editIndex] = mov;
-    editIndex = null;
+    form.reset();
+    fechaEl.value = fechaHoy();
+  } catch (err) {
+    console.error("Error guardando:", err);
+    alert("No se pudo guardar. Revisa permisos/reglas de Firestore.");
   }
-
-  guardar();
-  form.reset();
-  fechaEl.value = fechaHoy();
 });
 
-// ====== Persistencia ======
-function guardar() {
-  localStorage.setItem("movimientos", JSON.stringify(movimientos));
-  render();
+// ====== Render ======
+function render() {
+  renderTabla();
+  renderDashboard();
+  renderResumenTrabajadores();
 }
 
-// ====== Render principal ======
-function render() {
+function renderTabla() {
   tabla.innerHTML = "";
-  let ingresos = 0;
-  let gastos = 0;
 
-  movimientos.forEach((m, i) => {
-    // ✅ Gratis NO suma a ingresos (solo se registra)
-    if ((m.tipo === "Ingreso" || m.tipo === "Inicio de Caja") && !m.gratis) ingresos += m.importe;
-    if (m.tipo === "Gasto") gastos += m.importe;
+  // Si quieres newest-first, invierte:
+  // const lista = [...movimientos].reverse();
+  const lista = movimientos;
 
+  lista.forEach((m) => {
     const neto = calcularNeto(m);
 
-    // ✅ 8 columnas: Neto y Acciones separados
     tabla.innerHTML += `
       <tr>
-        <td>${m.fecha}</td>
-        <td>${m.tipo}</td>
-        <td>${m.concepto}</td>
+        <td>${m.fecha || ""}</td>
+        <td>${m.tipo || ""}</td>
+        <td>${m.concepto || ""}</td>
         <td>${m.trabajador || ""}</td>
         <td>${m.gratis ? "Sí" : "No"}</td>
-        <td class="right">${m.importe.toFixed(2)} €</td>
-        <td class="right"><b>${neto.toFixed(2)} €</b></td>
+        <td class="right">${eur(m.importe)}</td>
+        <td class="right"><b>${eur(neto)}</b></td>
         <td class="right">
-          <button class="edit" onclick="editar(${i})">Editar</button>
-          <button class="delete" onclick="borrar(${i})">Borrar</button>
+          <button class="edit" data-id="${m.id}">Editar</button>
+          <button class="delete" data-id="${m.id}">Borrar</button>
         </td>
       </tr>
     `;
   });
-
-  ingresosEl.textContent = ingresos.toFixed(2) + " €";
-  gastosEl.textContent = gastos.toFixed(2) + " €";
-  balanceEl.textContent = (ingresos - gastos).toFixed(2) + " €";
-
-  renderResumenTrabajadores();
 }
 
-// ====== Editar / Borrar ======
-function editar(i) {
-  const m = movimientos[i];
-  fechaEl.value = m.fecha;
-  tipoEl.value = m.tipo;
-  conceptoEl.value = m.concepto;
-  trabajadorEl.value = m.trabajador;
-  importeEl.value = m.importe;
-  gratisEl.checked = m.gratis;
-  editIndex = i;
+function renderDashboard() {
+  let ingresos = 0;
+  let gastos = 0;
+
+  movimientos.forEach((m) => {
+    // ✅ Gratis NO suma a ingresos (ni Inicio de Caja si gratis)
+    if ((m.tipo === "Ingreso" || m.tipo === "Inicio de Caja") && !m.gratis) ingresos += m.importe;
+    if (m.tipo === "Gasto") gastos += m.importe;
+  });
+
+  ingresosEl.textContent = eur(ingresos);
+  gastosEl.textContent = eur(gastos);
+  balanceEl.textContent = eur(ingresos - gastos);
 }
 
-function borrar(i) {
-  if (confirm("¿Borrar este movimiento?")) {
-    movimientos.splice(i, 1);
-    guardar();
-  }
-}
-
-// ====== Sidebar: subtotal por trabajador con filtro por mes ======
+// Sidebar: subtotal por trabajador filtrable por mes (solo ingresos)
 function renderResumenTrabajadores() {
   if (!resumenTrabajadoresEl || !totalPagarEl) return;
 
-  const mesSel = mesFiltroEl ? mesFiltroEl.value : ""; // "YYYY-MM" o ""
-  const totales = {}; // { TR02: number, ... }
+  const mesSel = mesFiltroEl ? mesFiltroEl.value : ""; // YYYY-MM o ""
+  const totales = {};
 
   movimientos.forEach((m) => {
-    // Filtrar por mes si hay seleccionado
     if (mesSel && mesKey(m.fecha) !== mesSel) return;
-
-    // Solo ingresos para nóminas (si quieres incluir otros tipos, dímelo)
     if (m.tipo !== "Ingreso") return;
-
     if (!m.trabajador) return;
 
     const neto = calcularNeto(m);
@@ -209,16 +259,55 @@ function renderResumenTrabajadores() {
           <b>${tr}</b>
           <small>${mesSel || "Todos los meses"}</small>
         </div>
-        <div><b>${total.toFixed(2)} €</b></div>
+        <div><b>${eur(total)}</b></div>
       </div>
     `;
   });
 
-  totalPagarEl.textContent = totalPagar.toFixed(2) + " €";
+  totalPagarEl.textContent = eur(totalPagar);
 }
 
-// ====== Excel ======
-function descargarExcel() {
+// ====== Delegación de eventos Editar/Borrar ======
+tabla.addEventListener("click", async (e) => {
+  const btn = e.target.closest("button");
+  if (!btn) return;
+
+  const id = btn.getAttribute("data-id");
+  if (!id) return;
+
+  const isEdit = btn.classList.contains("edit");
+  const isDelete = btn.classList.contains("delete");
+
+  if (isEdit) {
+    const m = movimientos.find((x) => x.id === id);
+    if (!m) return;
+
+    fechaEl.value = m.fecha || fechaHoy();
+    tipoEl.value = m.tipo || "Ingreso";
+    conceptoEl.value = m.concepto || "Corte";
+    trabajadorEl.value = m.trabajador || "";
+    importeEl.value = Number(m.importe || 0);
+    gratisEl.checked = Boolean(m.gratis);
+
+    editId = id;
+    return;
+  }
+
+  if (isDelete) {
+    if (!confirm("¿Borrar este movimiento?")) return;
+
+    try {
+      await deleteDoc(doc(db, "movimientos", id));
+      if (editId === id) editId = null;
+    } catch (err) {
+      console.error("Error borrando:", err);
+      alert("No se pudo borrar. Revisa permisos/reglas de Firestore.");
+    }
+  }
+});
+
+// ====== Excel (incluye Neto) ======
+window.descargarExcel = function descargarExcel() {
   const data = movimientos.map((m) => {
     const netoNum = calcularNeto(m);
 
@@ -228,8 +317,8 @@ function descargarExcel() {
       Concepto: m.concepto,
       Trabajador: m.trabajador,
       Gratis: m.gratis ? "Sí" : "No",
-      Importe: m.importe.toFixed(2).replace(".", ","),
-      Neto: netoNum.toFixed(2).replace(".", ",")
+      Importe: Number(m.importe || 0),
+      Neto: Number(netoNum || 0).toFixed(2).replace(".", ",")
     };
   });
 
@@ -237,7 +326,4 @@ function descargarExcel() {
   const wb = XLSX.utils.book_new();
   XLSX.utils.book_append_sheet(wb, ws, "Caja");
   XLSX.writeFile(wb, "caja.xlsx");
-}
-
-// ====== Start ======
-render();
+};
