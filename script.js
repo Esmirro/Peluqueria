@@ -1,6 +1,6 @@
 // script.js (ES MODULE)
 
-// ====== Firebase imports ======
+// ===== Firebase imports =====
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.4/firebase-app.js";
 import {
   getFirestore,
@@ -15,28 +15,36 @@ import {
   serverTimestamp
 } from "https://www.gstatic.com/firebasejs/10.12.4/firebase-firestore.js";
 
-// ====== Si ya inicializaste Firebase en index.html (window.db), lo usamos.
-// Si no, lo inicializamos aquí (robusto).
+import {
+  getAuth,
+  GoogleAuthProvider,
+  signInWithRedirect,
+  signOut,
+  onAuthStateChanged
+} from "https://www.gstatic.com/firebasejs/10.12.4/firebase-auth.js";
+
+// ===== Firebase config =====
 const firebaseConfig = {
   apiKey: "AIzaSyBmRXxzIOr3sevzlXQQDaWKlpEXEB7si1Y",
   authDomain: "peluqueria-eacca.firebaseapp.com",
   projectId: "peluqueria-eacca",
   storageBucket: "peluqueria-eacca.firebasestorage.app",
   messagingSenderId: "104134229616",
-  appId: "1:104134229616:web:64673e422f16a682fafeb5",
-  measurementId: "G-KF9MGY7YVV"
+  appId: "1:104134229616:web:64673e422f16a682fafeb5"
 };
 
-const db = window.db || getFirestore(initializeApp(firebaseConfig));
+// ===== Init =====
+const app = initializeApp(firebaseConfig);
+const db = getFirestore(app);
+const auth = getAuth(app);
+const provider = new GoogleAuthProvider();
 
-// ====== Estado ======
-let movimientos = []; // [{id, fecha, tipo, concepto, trabajador, gratis, importe}]
-let editId = null;
+// ===== DOM =====
+const authBar = document.getElementById("authBar");
+const userEmailEl = document.getElementById("userEmail");
+const loginBtn = document.getElementById("loginBtn");
+const logoutBtn = document.getElementById("logoutBtn");
 
-// Colección Firestore
-const MOVS_COL = collection(db, "movimientos");
-
-// ====== DOM ======
 const form = document.getElementById("form");
 const tabla = document.getElementById("tabla");
 
@@ -51,85 +59,78 @@ const ingresosEl = document.getElementById("ingresos");
 const gastosEl = document.getElementById("gastos");
 const balanceEl = document.getElementById("balance");
 
-// Sidebar (si existe en tu HTML)
 const mesFiltroEl = document.getElementById("mesFiltro");
 const resumenTrabajadoresEl = document.getElementById("resumenTrabajadores");
 const totalPagarEl = document.getElementById("totalPagar");
 
-// ====== Utilidades ======
+// ===== Estado =====
+let movimientos = [];
+let editId = null;
+let unsubscribe = null;
+
+// ===== Utils =====
 function fechaHoy() {
-  const hoy = new Date();
-  return hoy.toISOString().split("T")[0];
+  return new Date().toISOString().split("T")[0];
 }
-
-function formatoFecha(fecha) {
-  const d = new Date(fecha);
-  return d.toLocaleDateString("es-ES");
+function eur(n) {
+  return Number(n || 0).toFixed(2) + " €";
 }
-
-function mesKey(fecha) {
-  return (fecha || "").slice(0, 7); // YYYY-MM
+function mesKey(f) {
+  return (f || "").slice(0, 7);
 }
-
 function calcularNeto(m) {
   return m.gratis ? m.importe : m.importe * 0.4;
 }
 
-function eur(n) {
-  return Number(n || 0).toFixed(2) + " €";
+// ===== AUTH UI =====
+authBar.style.display = "block";
+
+loginBtn.onclick = () => signInWithRedirect(auth, provider);
+logoutBtn.onclick = () => signOut(auth);
+
+// ===== Auth state =====
+onAuthStateChanged(auth, (user) => {
+  if (!user) {
+    // No logueado
+    userEmailEl.textContent = "";
+    loginBtn.style.display = "inline-block";
+    logoutBtn.style.display = "none";
+
+    if (unsubscribe) unsubscribe();
+    movimientos = [];
+    render();
+    return;
+  }
+
+  // Logueado
+  userEmailEl.textContent = user.email;
+  loginBtn.style.display = "none";
+  logoutBtn.style.display = "inline-block";
+
+  iniciarFirestore();
+});
+
+// ===== Firestore realtime =====
+function iniciarFirestore() {
+  if (unsubscribe) unsubscribe();
+
+  const q = query(
+    collection(db, "movimientos"),
+    orderBy("fecha", "asc"),
+    orderBy("createdAt", "asc")
+  );
+
+  unsubscribe = onSnapshot(q, (snap) => {
+    movimientos = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+    render();
+  });
 }
 
-// ====== Init UI ======
+// ===== Form =====
 fechaEl.value = fechaHoy();
 
-if (mesFiltroEl) {
-  const now = new Date();
-  const yyyy = now.getFullYear();
-  const mm = String(now.getMonth() + 1).padStart(2, "0");
-  mesFiltroEl.value = `${yyyy}-${mm}`;
-  mesFiltroEl.addEventListener("change", () => renderResumenTrabajadores());
-}
-
-// ====== Tiempo real Firestore ======
-const q = query(MOVS_COL, orderBy("fecha", "asc"), orderBy("createdAt", "asc"));
-
-onSnapshot(
-  q,
-  (snap) => {
-    movimientos = snap.docs.map((d) => ({ id: d.id, ...d.data() }));
-
-    // Asegurar tipos
-    movimientos = movimientos.map((m) => ({
-      ...m,
-      gratis: Boolean(m.gratis),
-      importe: Number(m.importe || 0)
-    }));
-
-    render();
-  },
-  (err) => {
-    console.error("Error onSnapshot:", err);
-    alert("Error conectando con Firestore. Revisa reglas/permiso o conexión.");
-  }
-);
-
-// ====== Crear / Editar ======
 form.addEventListener("submit", async (e) => {
   e.preventDefault();
-
-  const tipo = tipoEl.value;
-  const trabajador = trabajadorEl.value;
-
-  if (tipo !== "Inicio de Caja" && trabajador === "") {
-    alert("Debes seleccionar un trabajador");
-    return;
-  }
-
-  const importe = Math.abs(parseFloat(importeEl.value));
-  if (Number.isNaN(importe)) {
-    alert("Importe no válido");
-    return;
-  }
 
   const mov = {
     fecha: fechaEl.value,
@@ -137,193 +138,128 @@ form.addEventListener("submit", async (e) => {
     concepto: conceptoEl.value,
     trabajador: trabajadorEl.value || "",
     gratis: gratisEl.checked,
-    importe
+    importe: Math.abs(parseFloat(importeEl.value))
   };
 
-  try {
-    if (editId === null) {
-      await addDoc(MOVS_COL, {
-        ...mov,
-        createdAt: serverTimestamp(),
-        updatedAt: serverTimestamp()
-      });
-    } else {
-      await updateDoc(doc(db, "movimientos", editId), {
-        ...mov,
-        updatedAt: serverTimestamp()
-      });
-      editId = null;
-    }
-
-    form.reset();
-    fechaEl.value = fechaHoy();
-  } catch (err) {
-    console.error("Error guardando:", err);
-    alert("No se pudo guardar. Revisa permisos/reglas de Firestore.");
+  if (editId) {
+    await updateDoc(doc(db, "movimientos", editId), {
+      ...mov,
+      updatedAt: serverTimestamp()
+    });
+    editId = null;
+  } else {
+    await addDoc(collection(db, "movimientos"), {
+      ...mov,
+      createdAt: serverTimestamp()
+    });
   }
+
+  form.reset();
+  fechaEl.value = fechaHoy();
 });
 
-// ====== Render ======
+// ===== Render =====
 function render() {
-  renderTabla();
-  renderDashboard();
-  renderResumenTrabajadores();
-}
-
-function renderTabla() {
   tabla.innerHTML = "";
 
-  // Si quieres newest-first, invierte:
-  // const lista = [...movimientos].reverse();
-  const lista = movimientos;
-
-  lista.forEach((m) => {
-    const neto = calcularNeto(m);
-
-    tabla.innerHTML += `
-      <tr>
-        <td>${m.fecha || ""}</td>
-        <td>${m.tipo || ""}</td>
-        <td>${m.concepto || ""}</td>
-        <td>${m.trabajador || ""}</td>
-        <td>${m.gratis ? "Sí" : "No"}</td>
-        <td class="right">${eur(m.importe)}</td>
-        <td class="right"><b>${eur(neto)}</b></td>
-        <td class="right">
-          <button class="edit" data-id="${m.id}">Editar</button>
-          <button class="delete" data-id="${m.id}">Borrar</button>
-        </td>
-      </tr>
-    `;
-  });
-}
-
-function renderDashboard() {
   let ingresos = 0;
   let gastos = 0;
 
-  movimientos.forEach((m) => {
-    // ✅ Gratis NO suma a ingresos (ni Inicio de Caja si gratis)
-    if ((m.tipo === "Ingreso" || m.tipo === "Inicio de Caja") && !m.gratis) ingresos += m.importe;
+  movimientos.forEach(m => {
+    if ((m.tipo === "Ingreso" || m.tipo === "Inicio de Caja") && !m.gratis)
+      ingresos += m.importe;
     if (m.tipo === "Gasto") gastos += m.importe;
+
+    tabla.innerHTML += `
+      <tr>
+        <td>${m.fecha}</td>
+        <td>${m.tipo}</td>
+        <td>${m.concepto}</td>
+        <td>${m.trabajador}</td>
+        <td>${m.gratis ? "Sí" : "No"}</td>
+        <td class="right">${eur(m.importe)}</td>
+        <td class="right"><b>${eur(calcularNeto(m))}</b></td>
+        <td class="right">
+          <button data-edit="${m.id}">Editar</button>
+          <button data-del="${m.id}">Borrar</button>
+        </td>
+      </tr>
+    `;
   });
 
   ingresosEl.textContent = eur(ingresos);
   gastosEl.textContent = eur(gastos);
   balanceEl.textContent = eur(ingresos - gastos);
+
+  renderSidebar();
 }
 
-// Sidebar: subtotal por trabajador filtrable por mes (solo ingresos)
-function renderResumenTrabajadores() {
-  if (!resumenTrabajadoresEl || !totalPagarEl) return;
+// ===== Sidebar =====
+function renderSidebar() {
+  if (!mesFiltroEl) return;
 
-  const mesSel = mesFiltroEl ? mesFiltroEl.value : ""; // YYYY-MM o ""
-  const totales = {};
+  const mes = mesFiltroEl.value;
+  const tot = {};
 
-  movimientos.forEach((m) => {
-    if (mesSel && mesKey(m.fecha) !== mesSel) return;
+  movimientos.forEach(m => {
     if (m.tipo !== "Ingreso") return;
+    if (mes && mesKey(m.fecha) !== mes) return;
     if (!m.trabajador) return;
 
-    const neto = calcularNeto(m);
-    totales[m.trabajador] = (totales[m.trabajador] || 0) + neto;
+    tot[m.trabajador] = (tot[m.trabajador] || 0) + calcularNeto(m);
   });
-
-  const trabajadores = Object.keys(totales).sort((a, b) => a.localeCompare(b, "es"));
 
   resumenTrabajadoresEl.innerHTML = "";
+  let total = 0;
 
-  if (trabajadores.length === 0) {
-    resumenTrabajadoresEl.innerHTML = `
-      <div class="worker-item">
-        <div>
-          <b>Sin datos</b>
-          <small>No hay ingresos con trabajador en este mes</small>
-        </div>
-        <div>—</div>
-      </div>
-    `;
-    totalPagarEl.textContent = "0 €";
-    return;
-  }
-
-  let totalPagar = 0;
-
-  trabajadores.forEach((tr) => {
-    const total = totales[tr] || 0;
-    totalPagar += total;
-
+  Object.keys(tot).sort().forEach(t => {
+    total += tot[t];
     resumenTrabajadoresEl.innerHTML += `
       <div class="worker-item">
-        <div>
-          <b>${tr}</b>
-          <small>${mesSel || "Todos los meses"}</small>
-        </div>
-        <div><b>${eur(total)}</b></div>
+        <b>${t}</b>
+        <span>${eur(tot[t])}</span>
       </div>
     `;
   });
 
-  totalPagarEl.textContent = eur(totalPagar);
+  totalPagarEl.textContent = eur(total);
 }
 
-// ====== Delegación de eventos Editar/Borrar ======
-tabla.addEventListener("click", async (e) => {
-  const btn = e.target.closest("button");
-  if (!btn) return;
-
-  const id = btn.getAttribute("data-id");
+// ===== Edit / Delete =====
+tabla.onclick = async (e) => {
+  const id = e.target.dataset.edit || e.target.dataset.del;
   if (!id) return;
 
-  const isEdit = btn.classList.contains("edit");
-  const isDelete = btn.classList.contains("delete");
-
-  if (isEdit) {
-    const m = movimientos.find((x) => x.id === id);
-    if (!m) return;
-
-    fechaEl.value = m.fecha || fechaHoy();
-    tipoEl.value = m.tipo || "Ingreso";
-    conceptoEl.value = m.concepto || "Corte";
-    trabajadorEl.value = m.trabajador || "";
-    importeEl.value = Number(m.importe || 0);
-    gratisEl.checked = Boolean(m.gratis);
-
+  if (e.target.dataset.edit) {
+    const m = movimientos.find(x => x.id === id);
+    fechaEl.value = m.fecha;
+    tipoEl.value = m.tipo;
+    conceptoEl.value = m.concepto;
+    trabajadorEl.value = m.trabajador;
+    importeEl.value = m.importe;
+    gratisEl.checked = m.gratis;
     editId = id;
-    return;
   }
 
-  if (isDelete) {
-    if (!confirm("¿Borrar este movimiento?")) return;
-
-    try {
-      await deleteDoc(doc(db, "movimientos", id));
-      if (editId === id) editId = null;
-    } catch (err) {
-      console.error("Error borrando:", err);
-      alert("No se pudo borrar. Revisa permisos/reglas de Firestore.");
-    }
+  if (e.target.dataset.del && confirm("¿Borrar este movimiento?")) {
+    await deleteDoc(doc(db, "movimientos", id));
   }
-});
+};
 
-// ====== Excel (incluye Neto) ======
-window.descargarExcel = function descargarExcel() {
-  const data = movimientos.map((m) => {
-    const netoNum = calcularNeto(m);
-
-    return {
-      Fecha: formatoFecha(m.fecha),
-      Tipo: m.tipo,
-      Concepto: m.concepto,
-      Trabajador: m.trabajador,
-      Gratis: m.gratis ? "Sí" : "No",
-      Importe: Number(m.importe || 0),
-      Neto: Number(netoNum || 0).toFixed(2).replace(".", ",")
-    };
-  });
+// ===== Excel =====
+window.descargarExcel = function () {
+  const data = movimientos.map(m => ({
+    Fecha: m.fecha,
+    Tipo: m.tipo,
+    Concepto: m.concepto,
+    Trabajador: m.trabajador,
+    Importe: m.importe,
+    Neto: calcularNeto(m)
+  }));
 
   const ws = XLSX.utils.json_to_sheet(data);
   const wb = XLSX.utils.book_new();
   XLSX.utils.book_append_sheet(wb, ws, "Caja");
   XLSX.writeFile(wb, "caja.xlsx");
 };
+
