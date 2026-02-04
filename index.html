@@ -1,0 +1,190 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <title>Control de Caja</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+
+  <!-- Fuente -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;800&display=swap" rel="stylesheet">
+
+  <!-- CSS -->
+  <link rel="stylesheet" href="estilos.css" />
+
+  <!-- SheetJS -->
+  <script src="https://cdn.jsdelivr.net/npm/xlsx/dist/xlsx.full.min.js"></script>
+</head>
+
+<body>
+  <header class="topbar">
+    <div class="topbar__inner">
+      <div class="brand">
+        <div class="brand__logo">€</div>
+        <div>
+          <div class="brand__title">Control de Caja</div>
+          <div class="brand__subtitle">Registra movimientos, calcula netos y pagos</div>
+        </div>
+      </div>
+
+      <div class="topbar__actions">
+        <button class="btn btn--ghost" type="button" onclick="descargarExcel()">
+          Descargar Excel
+        </button>
+      </div>
+    </div>
+  </header>
+
+  <main class="layout">
+    <!-- SIDEBAR -->
+    <aside class="sidebar panel">
+      <div class="panel__head">
+        <h2>Pagos por trabajador</h2>
+        <p>Subtotal neto por mes (solo Ingresos)</p>
+      </div>
+
+      <div class="sidebar__body">
+        <div class="field">
+          <label for="mesFiltro">Mes</label>
+          <input type="month" id="mesFiltro" />
+        </div>
+
+        <div id="resumenTrabajadores" class="worker-list">
+          <!-- JS renderiza aquí -->
+        </div>
+
+        <div class="worker-total">
+          <span>Total a pagar</span>
+          <b id="totalPagar">0 €</b>
+        </div>
+      </div>
+    </aside>
+
+    <!-- CONTENT -->
+    <section class="content">
+      <!-- FORMULARIO -->
+      <section class="panel">
+        <div class="panel__head">
+          <h2>Nuevo movimiento</h2>
+          <p>Completa los datos y pulsa <b>Añadir</b>.</p>
+        </div>
+
+        <form id="form" class="form-grid">
+          <div class="field">
+            <label for="fecha">Fecha</label>
+            <input type="date" id="fecha" required />
+          </div>
+
+          <div class="field">
+            <label for="tipo">Tipo</label>
+            <select id="tipo" required>
+              <option value="Ingreso">Ingreso</option>
+              <option value="Gasto">Gasto</option>
+              <option value="Inicio de Caja">Inicio de Caja</option>
+            </select>
+          </div>
+
+          <div class="field">
+            <label for="concepto">Concepto</label>
+            <select id="concepto" required>
+              <option value="Corte">Corte</option>
+              <option value="Inicio Caja">Inicio Caja</option>
+            </select>
+          </div>
+
+          <div class="field">
+            <label for="trabajador">Trabajador</label>
+            <select id="trabajador">
+              <option value="">—</option>
+              <option value="TR02">TR02</option>
+              <option value="TR03">TR03</option>
+              <option value="TR04">TR04</option>
+              <option value="TR05">TR05</option>
+              <option value="TR06">TR06</option>
+            </select>
+          </div>
+
+          <div class="field">
+            <label for="importe">Importe</label>
+            <div class="money">
+              <span class="money__prefix">€</span>
+              <input type="number" id="importe" step="0.01" placeholder="0,00" required />
+            </div>
+          </div>
+
+          <div class="field field--inline">
+            <label class="switch">
+              <input type="checkbox" id="gratis" />
+              <span class="switch__ui"></span>
+              <span class="switch__text">Gratis</span>
+            </label>
+          </div>
+
+          <div class="form-actions">
+            <button class="btn btn--primary" type="submit">Añadir</button>
+          </div>
+        </form>
+      </section>
+
+      <!-- DASHBOARD -->
+      <section class="stats">
+        <div class="stat stat--good">
+          <div class="stat__label">Total Ingresos</div>
+          <div class="stat__value" id="ingresos">0 €</div>
+        </div>
+        <div class="stat stat--bad">
+          <div class="stat__label">Total Gastos</div>
+          <div class="stat__value" id="gastos">0 €</div>
+        </div>
+        <div class="stat">
+          <div class="stat__label">Balance</div>
+          <div class="stat__value" id="balance">0 €</div>
+        </div>
+      </section>
+
+      <!-- TABLA -->
+      <section class="panel movements">
+        <div class="panel__head">
+          <h2>Movimientos</h2>
+          <p>
+            “Gratis” no suma a ingresos. El “Neto” es: <b>40%</b> normal / <b>100%</b> si gratis.
+          </p>
+        </div>
+
+        <div class="table-wrap">
+          <table class="table">
+            <thead>
+              <tr>
+                <th>Fecha</th>
+                <th>Tipo</th>
+                <th>Concepto</th>
+                <th>Trabajador</th>
+                <th>Gratis</th>
+                <th class="right">Importe</th>
+                <th class="right">Neto</th>
+                <th class="right">Acciones</th>
+              </tr>
+            </thead>
+            <tbody id="tabla"></tbody>
+          </table>
+        </div>
+
+        <div class="panel__foot">
+          <button class="btn btn--secondary" type="button" onclick="descargarExcel()">
+            Descargar Excel
+          </button>
+        </div>
+      </section>
+    </section>
+
+    <!-- FAB móvil -->
+    <button class="fab" type="button" title="Descargar Excel" onclick="descargarExcel()">
+      ⬇
+    </button>
+  </main>
+
+  <!-- JS -->
+  <script src="script.js"></script>
+</body>
+</html>
