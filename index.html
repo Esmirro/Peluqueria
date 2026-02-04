@@ -184,7 +184,27 @@
     </button>
   </main>
 
-  <!-- JS -->
+  <!-- Firebase (Firestore) -->
+  <script type="module">
+    import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.4/firebase-app.js";
+    import { getFirestore } from "https://www.gstatic.com/firebasejs/10.12.4/firebase-firestore.js";
+
+    const firebaseConfig = {
+      apiKey: "AIzaSyBmRXxzIOr3sevzlXQQDaWKlpEXEB7si1Y",
+      authDomain: "peluqueria-eacca.firebaseapp.com",
+      projectId: "peluqueria-eacca",
+      storageBucket: "peluqueria-eacca.firebasestorage.app",
+      messagingSenderId: "104134229616",
+      appId: "1:104134229616:web:64673e422f16a682fafeb5",
+      measurementId: "G-KF9MGY7YVV"
+    };
+
+    const app = initializeApp(firebaseConfig);
+    // Lo exponemos para que script.js (no-module) lo use
+    window.db = getFirestore(app);
+  </script>
+
+  <!-- JS de tu app -->
   <script src="script.js"></script>
 </body>
 </html>
