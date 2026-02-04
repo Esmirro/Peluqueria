@@ -18,200 +18,115 @@
 </head>
 
 <body>
-  <div id="authBar" style="padding:10px;text-align:right;display:none">
-  <span id="userEmail" style="margin-right:10px"></span>
-  <button id="loginBtn">Entrar con Google</button>
-  <button id="logoutBtn" style="display:none">Salir</button>
-</div>
+
+  <!-- 🔐 BARRA DE LOGIN -->
+  <div id="authBar" style="max-width:1400px;margin:10px auto;padding:0 18px;display:none;justify-content:flex-end;gap:10px">
+    <span id="userEmail" style="font-size:13px;color:#666"></span>
+    <button id="loginBtn">Entrar con Google</button>
+    <button id="logoutBtn" style="display:none">Salir</button>
+  </div>
+
   <header class="topbar">
     <div class="topbar__inner">
       <div class="brand">
         <div class="brand__logo">€</div>
         <div>
           <div class="brand__title">Control de Caja</div>
-          <div class="brand__subtitle">Registra movimientos, calcula netos y pagos</div>
+          <div class="brand__subtitle">Caja compartida con trabajadores</div>
         </div>
-      </div>
-
-      <div class="topbar__actions">
-        <button class="btn btn--ghost" type="button" onclick="descargarExcel()">
-          Descargar Excel
-        </button>
       </div>
     </div>
   </header>
 
   <main class="layout">
+
     <!-- SIDEBAR -->
     <aside class="sidebar panel">
       <div class="panel__head">
         <h2>Pagos por trabajador</h2>
-        <p>Subtotal neto por mes (solo Ingresos)</p>
       </div>
 
       <div class="sidebar__body">
-        <div class="field">
-          <label for="mesFiltro">Mes</label>
-          <input type="month" id="mesFiltro" />
-        </div>
+        <label>Mes</label>
+        <input type="month" id="mesFiltro">
 
-        <div id="resumenTrabajadores" class="worker-list">
-          <!-- JS renderiza aquí -->
-        </div>
+        <div id="resumenTrabajadores"></div>
 
-        <div class="worker-total">
-          <span>Total a pagar</span>
-          <b id="totalPagar">0 €</b>
-        </div>
+        <hr>
+        <b>Total a pagar:</b> <span id="totalPagar">0 €</span>
       </div>
     </aside>
 
-    <!-- CONTENT -->
+    <!-- CONTENIDO -->
     <section class="content">
-      <!-- FORMULARIO -->
+
+      <!-- FORM -->
       <section class="panel">
-        <div class="panel__head">
-          <h2>Nuevo movimiento</h2>
-          <p>Completa los datos y pulsa <b>Añadir</b>.</p>
-        </div>
+        <form id="form">
+          <input type="date" id="fecha" required>
 
-        <form id="form" class="form-grid">
-          <div class="field">
-            <label for="fecha">Fecha</label>
-            <input type="date" id="fecha" required />
-          </div>
+          <select id="tipo">
+            <option>Ingreso</option>
+            <option>Gasto</option>
+            <option>Inicio de Caja</option>
+          </select>
 
-          <div class="field">
-            <label for="tipo">Tipo</label>
-            <select id="tipo" required>
-              <option value="Ingreso">Ingreso</option>
-              <option value="Gasto">Gasto</option>
-              <option value="Inicio de Caja">Inicio de Caja</option>
-            </select>
-          </div>
+          <select id="concepto">
+            <option>Corte</option>
+            <option>Inicio Caja</option>
+          </select>
 
-          <div class="field">
-            <label for="concepto">Concepto</label>
-            <select id="concepto" required>
-              <option value="Corte">Corte</option>
-              <option value="Inicio Caja">Inicio Caja</option>
-            </select>
-          </div>
+          <select id="trabajador">
+            <option value="">—</option>
+            <option>TR02</option>
+            <option>TR03</option>
+            <option>TR04</option>
+            <option>TR05</option>
+            <option>TR06</option>
+          </select>
 
-          <div class="field">
-            <label for="trabajador">Trabajador</label>
-            <select id="trabajador">
-              <option value="">—</option>
-              <option value="TR02">TR02</option>
-              <option value="TR03">TR03</option>
-              <option value="TR04">TR04</option>
-              <option value="TR05">TR05</option>
-              <option value="TR06">TR06</option>
-            </select>
-          </div>
+          <input type="number" id="importe" step="0.01" placeholder="Importe">
 
-          <div class="field">
-            <label for="importe">Importe</label>
-            <div class="money">
-              <span class="money__prefix">€</span>
-              <input type="number" id="importe" step="0.01" placeholder="0,00" required />
-            </div>
-          </div>
+          <label>
+            <input type="checkbox" id="gratis"> Gratis
+          </label>
 
-          <div class="field field--inline">
-            <label class="switch">
-              <input type="checkbox" id="gratis" />
-              <span class="switch__ui"></span>
-              <span class="switch__text">Gratis</span>
-            </label>
-          </div>
-
-          <div class="form-actions">
-            <button class="btn btn--primary" type="submit">Añadir</button>
-          </div>
+          <button type="submit">Añadir</button>
         </form>
       </section>
 
       <!-- DASHBOARD -->
       <section class="stats">
-        <div class="stat stat--good">
-          <div class="stat__label">Total Ingresos</div>
-          <div class="stat__value" id="ingresos">0 €</div>
-        </div>
-        <div class="stat stat--bad">
-          <div class="stat__label">Total Gastos</div>
-          <div class="stat__value" id="gastos">0 €</div>
-        </div>
-        <div class="stat">
-          <div class="stat__label">Balance</div>
-          <div class="stat__value" id="balance">0 €</div>
-        </div>
+        <div>Ingresos: <b id="ingresos">0 €</b></div>
+        <div>Gastos: <b id="gastos">0 €</b></div>
+        <div>Balance: <b id="balance">0 €</b></div>
       </section>
 
       <!-- TABLA -->
-      <section class="panel movements">
-        <div class="panel__head">
-          <h2>Movimientos</h2>
-          <p>
-            “Gratis” no suma a ingresos. El “Neto” es: <b>40%</b> normal / <b>100%</b> si gratis.
-          </p>
-        </div>
+      <section class="panel">
+        <table>
+          <thead>
+            <tr>
+              <th>Fecha</th>
+              <th>Tipo</th>
+              <th>Concepto</th>
+              <th>Trabajador</th>
+              <th>Gratis</th>
+              <th>Importe</th>
+              <th>Neto</th>
+              <th>Acciones</th>
+            </tr>
+          </thead>
+          <tbody id="tabla"></tbody>
+        </table>
 
-        <div class="table-wrap">
-          <table class="table">
-            <thead>
-              <tr>
-                <th>Fecha</th>
-                <th>Tipo</th>
-                <th>Concepto</th>
-                <th>Trabajador</th>
-                <th>Gratis</th>
-                <th class="right">Importe</th>
-                <th class="right">Neto</th>
-                <th class="right">Acciones</th>
-              </tr>
-            </thead>
-            <tbody id="tabla"></tbody>
-          </table>
-        </div>
-
-        <div class="panel__foot">
-          <button class="btn btn--secondary" type="button" onclick="descargarExcel()">
-            Descargar Excel
-          </button>
-        </div>
+        <button onclick="descargarExcel()">Descargar Excel</button>
       </section>
-    </section>
 
-    <!-- FAB móvil -->
-    <button class="fab" type="button" title="Descargar Excel" onclick="descargarExcel()">
-      ⬇
-    </button>
+    </section>
   </main>
 
-  <!-- Firebase (Firestore) -->
-  <script type="module">
-    import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.4/firebase-app.js";
-    import { getFirestore } from "https://www.gstatic.com/firebasejs/10.12.4/firebase-firestore.js";
-
-    const firebaseConfig = {
-      apiKey: "AIzaSyBmRXxzIOr3sevzlXQQDaWKlpEXEB7si1Y",
-      authDomain: "peluqueria-eacca.firebaseapp.com",
-      projectId: "peluqueria-eacca",
-      storageBucket: "peluqueria-eacca.firebasestorage.app",
-      messagingSenderId: "104134229616",
-      appId: "1:104134229616:web:64673e422f16a682fafeb5",
-      measurementId: "G-KF9MGY7YVV"
-    };
-
-    const app = initializeApp(firebaseConfig);
-    // Lo exponemos para que script.js (no-module) lo use
-    window.db = getFirestore(app);
-  </script>
-
-  <!-- JS de tu app -->
+  <!-- ⚠️ IMPORTANTE -->
   <script type="module" src="script.js"></script>
 </body>
 </html>
-
-
