@@ -1,11 +1,9 @@
-// ===== Firebase imports (MODULE) =====
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.4/firebase-app.js";
 import {
   getFirestore,
   collection,
   addDoc,
   doc,
-  updateDoc,
   deleteDoc,
   onSnapshot,
   query,
@@ -16,6 +14,7 @@ import {
 import {
   getAuth,
   GoogleAuthProvider,
+  signInWithPopup,
   signInWithRedirect,
   signOut,
   onAuthStateChanged,
@@ -24,7 +23,6 @@ import {
   browserLocalPersistence
 } from "https://www.gstatic.com/firebasejs/10.12.4/firebase-auth.js";
 
-// ===== Firebase config (COMPLETA) =====
 const firebaseConfig = {
   apiKey: "AIzaSyBmRXxzIOr3sevzlXQQDaWKlpEXEB7si1Y",
   authDomain: "peluqueria-eacca.firebaseapp.com",
@@ -34,13 +32,13 @@ const firebaseConfig = {
   appId: "1:104134229616:web:64673e422f16a682fafeb5"
 };
 
-// ===== Init =====
 const app = initializeApp(firebaseConfig);
 const db = getFirestore(app);
 const auth = getAuth(app);
 const provider = new GoogleAuthProvider();
+provider.setCustomParameters({ prompt: "select_account" }); // fuerza elegir cuenta
 
-// ===== DOM =====
+// DOM
 const userEmailEl = document.getElementById("userEmail");
 const loginBtn = document.getElementById("loginBtn");
 const logoutBtn = document.getElementById("logoutBtn");
@@ -65,7 +63,6 @@ const totalPagarEl = document.getElementById("totalPagar");
 let movimientos = [];
 let unsubscribe = null;
 
-// ===== Helpers =====
 function fechaHoy() {
   return new Date().toISOString().split("T")[0];
 }
@@ -80,17 +77,10 @@ function netoMovimiento(m) {
   const imp = Number(m.importe || 0);
   return m.gratis ? imp : imp * 0.4;
 }
-function requireUser() {
-  if (!auth.currentUser) {
-    alert("Primero inicia sesión con Google.");
-    return false;
-  }
-  return true;
-}
 
 if (fechaEl) fechaEl.value = fechaHoy();
 
-// ===== IMPORTANTE: persistencia =====
+// Persistencia
 try {
   await setPersistence(auth, browserLocalPersistence);
   console.log("✅ Auth persistence: browserLocalPersistence");
@@ -98,43 +88,39 @@ try {
   console.error("❌ setPersistence error:", e);
 }
 
-// ===== Capturar resultado del redirect (errores reales aquí) =====
+// Captura redirect (por si acaso; con popup normalmente no se usa)
 try {
   const result = await getRedirectResult(auth);
-  if (result?.user) {
-    console.log("✅ Redirect result user:", result.user.email);
-  } else {
-    console.log("ℹ️ Redirect result: sin usuario (normal si no vienes de redirect)");
-  }
+  console.log(result?.user ? "✅ Redirect user: " + result.user.email : "ℹ️ Redirect result: sin usuario");
 } catch (e) {
   console.error("❌ getRedirectResult ERROR:", e);
-  alert("LOGIN ERROR (redirect): " + (e.code || e.message));
 }
 
-// ===== Auth buttons =====
+// LOGIN: Popup primero, Redirect si el popup está bloqueado
 if (loginBtn) {
   loginBtn.addEventListener("click", async () => {
-    console.log("➡️ Click login (redirect)...");
     try {
-      await signInWithRedirect(auth, provider);
+      console.log("➡️ Login (popup)...");
+      await signInWithPopup(auth, provider);
     } catch (e) {
-      console.error("❌ signInWithRedirect ERROR:", e);
-      alert("LOGIN ERROR: " + (e.code || e.message));
+      console.error("❌ Popup login error:", e);
+      // Si el popup está bloqueado, hacemos redirect como plan B
+      if (e?.code === "auth/popup-blocked" || e?.code === "auth/cancelled-popup-request") {
+        alert("Popup bloqueado. Probando con redirect…");
+        await signInWithRedirect(auth, provider);
+      } else {
+        alert("LOGIN ERROR: " + (e.code || e.message));
+      }
     }
   });
 }
 
 if (logoutBtn) {
   logoutBtn.addEventListener("click", async () => {
-    try {
-      await signOut(auth);
-    } catch (e) {
-      console.error("❌ signOut ERROR:", e);
-    }
+    await signOut(auth);
   });
 }
 
-// ===== Auth state =====
 onAuthStateChanged(auth, (user) => {
   console.log("🔄 AUTH STATE:", user ? user.email : "NO USER");
 
@@ -164,8 +150,8 @@ onAuthStateChanged(auth, (user) => {
 
 function iniciarRealtime() {
   if (unsubscribe) unsubscribe();
-
   const q = query(collection(db, "movimientos"), orderBy("fecha", "desc"));
+
   unsubscribe = onSnapshot(
     q,
     (snap) => {
@@ -174,12 +160,19 @@ function iniciarRealtime() {
     },
     (err) => {
       console.error("❌ FIRESTORE ERROR:", err);
-      alert("Firestore error: " + (err.code || err.message));
+      alert("Firestore: " + (err.code || err.message));
     }
   );
 }
 
-// ===== Form submit =====
+function requireUser() {
+  if (!auth.currentUser) {
+    alert("Primero inicia sesión con Google.");
+    return false;
+  }
+  return true;
+}
+
 if (form) {
   form.addEventListener("submit", async (e) => {
     e.preventDefault();
@@ -199,27 +192,21 @@ if (form) {
       return;
     }
 
-    try {
-      await addDoc(collection(db, "movimientos"), {
-        fecha: fechaEl.value,
-        tipo: tipoEl.value,
-        concepto: conceptoEl.value,
-        trabajador: trabajadorEl.value || "",
-        gratis: !!gratisEl.checked,
-        importe: Number(importe),
-        createdAt: serverTimestamp()
-      });
+    await addDoc(collection(db, "movimientos"), {
+      fecha: fechaEl.value,
+      tipo: tipoEl.value,
+      concepto: conceptoEl.value,
+      trabajador: trabajadorEl.value || "",
+      gratis: !!gratisEl.checked,
+      importe: Number(importe),
+      createdAt: serverTimestamp()
+    });
 
-      form.reset();
-      fechaEl.value = fechaHoy();
-    } catch (err) {
-      console.error("❌ addDoc ERROR:", err);
-      alert("No se pudo guardar: " + (err.code || err.message));
-    }
+    form.reset();
+    fechaEl.value = fechaHoy();
   });
 }
 
-// ===== Render =====
 function render() {
   if (!tabla) return;
 
@@ -230,7 +217,6 @@ function render() {
   movimientos.forEach((m) => {
     const imp = Number(m.importe || 0);
 
-    // Gratis NO suma a ingresos
     if ((m.tipo === "Ingreso" || m.tipo === "Inicio de Caja") && !m.gratis) ingresos += imp;
     if (m.tipo === "Gasto") gastos += imp;
 
@@ -262,13 +248,7 @@ function render() {
 window.borrar = async (id) => {
   if (!requireUser()) return;
   if (!confirm("¿Borrar este movimiento?")) return;
-
-  try {
-    await deleteDoc(doc(db, "movimientos", id));
-  } catch (err) {
-    console.error("❌ deleteDoc ERROR:", err);
-    alert("No se pudo borrar: " + (err.code || err.message));
-  }
+  await deleteDoc(doc(db, "movimientos", id));
 };
 
 function renderSidebar() {
