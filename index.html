@@ -29,6 +29,10 @@
     </div>
 
     <div class="authbar__right">
+      <button id="viewToggleBtn" class="btn btn--ghost" type="button" title="Cambiar vista">
+        Vista: PC
+      </button>
+
       <span id="userEmail" class="authbar__email"></span>
       <button id="loginBtn" class="btn btn--primary" type="button">Entrar con Google</button>
       <button id="logoutBtn" class="btn btn--ghost" type="button" style="display:none">Salir</button>
@@ -39,8 +43,8 @@
     <!-- SIDEBAR -->
     <aside class="panel sidebar">
       <div class="panel__head">
-        <h2>Pagos por trabajador</h2>
-        <p>Subtotal neto por mes (solo Ingresos)</p>
+        <h2>Pagos y Facturación</h2>
+        <p>Filtra por mes y revisa pagos (nómina) y facturación por trabajador.</p>
       </div>
 
       <div class="panel__body">
@@ -49,11 +53,51 @@
           <input type="month" id="mesFiltro" />
         </div>
 
-        <div id="resumenTrabajadores" class="workers"></div>
+        <div class="sidegrid">
+          <!-- Pagos -->
+          <section class="sidecard">
+            <div class="sidecard__head">
+              <h3>Pagos por trabajador</h3>
+              <small>Nómina (neto) por mes</small>
+            </div>
 
-        <div class="totalbox">
-          <span>Total a pagar</span>
-          <b id="totalPagar">0 €</b>
+            <div id="resumenTrabajadores" class="workers"></div>
+
+            <div class="totalbox">
+              <span>Total nómina</span>
+              <b id="totalPagar">0 €</b>
+            </div>
+          </section>
+
+          <!-- Facturación -->
+          <section class="sidecard">
+            <div class="sidecard__head">
+              <h3>Facturación</h3>
+              <small>Facturación - Nómina</small>
+            </div>
+
+            <div class="miniwrap">
+              <table class="minitable">
+                <thead>
+                  <tr>
+                    <th>Trab.</th>
+                    <th class="right">Fact.</th>
+                    <th class="right">Nómina</th>
+                    <th class="right">Dif.</th>
+                  </tr>
+                </thead>
+                <tbody id="facturacionBody">
+                  <tr><td colspan="4">—</td></tr>
+                </tbody>
+              </table>
+            </div>
+
+            <div class="totals3">
+              <div><span>Total Fact.</span><b id="totalFacturacion">0 €</b></div>
+              <div><span>Total Nómina</span><b id="totalNomina">0 €</b></div>
+              <div><span>Total Dif.</span><b id="totalDiferencia">0 €</b></div>
+            </div>
+          </section>
         </div>
       </div>
     </aside>
