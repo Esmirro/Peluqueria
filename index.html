@@ -1,4 +1,4 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="es">
 <head>
   <meta charset="UTF-8" />
@@ -18,116 +18,159 @@
 </head>
 
 <body>
-
-  <!-- 🔐 BARRA DE LOGIN -->
-  <div id="authBar" style="max-width:1400px;margin:10px auto;padding:0 18px;display:flex;justify-content:flex-end;gap:10px">
-    <span id="userEmail" style="font-size:13px;color:#666"></span>
-    <button id="loginBtn">Entrar con Google</button>
-    <button id="logoutBtn" style="display:none">Salir</button>
-  </div>
-
-  <header class="topbar">
-    <div class="topbar__inner">
-      <div class="brand">
-        <div class="brand__logo">€</div>
-        <div>
-          <div class="brand__title">Control de Caja</div>
-          <div class="brand__subtitle">Caja compartida con trabajadores</div>
-        </div>
+  <!-- AUTH BAR -->
+  <div class="authbar" id="authBar">
+    <div class="authbar__left">
+      <div class="pill">€</div>
+      <div>
+        <div class="title">Control de Caja</div>
+        <div class="subtitle">Caja compartida con trabajadores</div>
       </div>
     </div>
-  </header>
+
+    <div class="authbar__right">
+      <span id="userEmail" class="authbar__email"></span>
+      <button id="loginBtn" class="btn btn--primary" type="button">Entrar con Google</button>
+      <button id="logoutBtn" class="btn btn--ghost" type="button" style="display:none">Salir</button>
+    </div>
+  </div>
 
   <main class="layout">
-
     <!-- SIDEBAR -->
-    <aside class="sidebar panel">
+    <aside class="panel sidebar">
       <div class="panel__head">
         <h2>Pagos por trabajador</h2>
+        <p>Subtotal neto por mes (solo Ingresos)</p>
       </div>
 
-      <div class="sidebar__body">
-        <label>Mes</label>
-        <input type="month" id="mesFiltro">
+      <div class="panel__body">
+        <div class="field">
+          <label for="mesFiltro">Mes</label>
+          <input type="month" id="mesFiltro" />
+        </div>
 
-        <div id="resumenTrabajadores"></div>
+        <div id="resumenTrabajadores" class="workers"></div>
 
-        <hr>
-        <b>Total a pagar:</b> <span id="totalPagar">0 €</span>
+        <div class="totalbox">
+          <span>Total a pagar</span>
+          <b id="totalPagar">0 €</b>
+        </div>
       </div>
     </aside>
 
-    <!-- CONTENIDO -->
-    <section class="content">
-
+    <!-- MAIN -->
+    <section class="main">
       <!-- FORM -->
       <section class="panel">
-        <form id="form">
-          <input type="date" id="fecha" required>
+        <div class="panel__head">
+          <h2>Nuevo movimiento</h2>
+          <p>Gratis no suma a ingresos. Neto = 40% / 100% si gratis (solo Ingresos).</p>
+        </div>
 
-          <select id="tipo">
-            <option>Ingreso</option>
-            <option>Gasto</option>
-            <option>Inicio de Caja</option>
-          </select>
+        <form id="form" class="form">
+          <div class="field">
+            <label for="fecha">Fecha</label>
+            <input type="date" id="fecha" name="fecha" required />
+          </div>
 
-          <select id="concepto">
-            <option>Corte</option>
-            <option>Inicio Caja</option>
-          </select>
+          <div class="field">
+            <label for="tipo">Tipo</label>
+            <select id="tipo" name="tipo" required>
+              <option value="Ingreso">Ingreso</option>
+              <option value="Gasto">Gasto</option>
+              <option value="Inicio de Caja">Inicio de Caja</option>
+            </select>
+          </div>
 
-          <select id="trabajador">
-            <option value="">—</option>
-            <option>TR02</option>
-            <option>TR03</option>
-            <option>TR04</option>
-            <option>TR05</option>
-            <option>TR06</option>
-          </select>
+          <div class="field">
+            <label for="concepto">Concepto</label>
+            <select id="concepto" name="concepto" required>
+              <option value="Corte">Corte</option>
+              <option value="Inicio Caja">Inicio Caja</option>
+            </select>
+          </div>
 
-          <input type="number" id="importe" step="0.01" placeholder="Importe">
+          <div class="field">
+            <label for="trabajador">Trabajador</label>
+            <select id="trabajador" name="trabajador">
+              <option value="">—</option>
+              <option value="TR02">TR02</option>
+              <option value="TR03">TR03</option>
+              <option value="TR04">TR04</option>
+              <option value="TR05">TR05</option>
+              <option value="TR06">TR06</option>
+            </select>
+          </div>
 
-          <label>
-            <input type="checkbox" id="gratis"> Gratis
-          </label>
+          <div class="field">
+            <label for="importe">Importe</label>
+            <input type="number" id="importe" name="importe" step="0.01" placeholder="0.00" required />
+          </div>
 
-          <button type="submit">Añadir</button>
+          <div class="field field--switch">
+            <label class="switch">
+              <input type="checkbox" id="gratis" name="gratis" />
+              <span>Gratis</span>
+            </label>
+          </div>
+
+          <div class="form__actions">
+            <button class="btn btn--primary" type="submit" id="submitBtn">Añadir</button>
+            <button class="btn btn--ghost" type="button" id="cancelEditBtn" style="display:none">Cancelar edición</button>
+          </div>
         </form>
       </section>
 
-      <!-- DASHBOARD -->
+      <!-- STATS -->
       <section class="stats">
-        <div>Ingresos: <b id="ingresos">0 €</b></div>
-        <div>Gastos: <b id="gastos">0 €</b></div>
-        <div>Balance: <b id="balance">0 €</b></div>
+        <div class="stat">
+          <div class="stat__label">Ingresos</div>
+          <div class="stat__value" id="ingresos">0 €</div>
+        </div>
+        <div class="stat">
+          <div class="stat__label">Gastos</div>
+          <div class="stat__value" id="gastos">0 €</div>
+        </div>
+        <div class="stat">
+          <div class="stat__label">Balance</div>
+          <div class="stat__value" id="balance">0 €</div>
+        </div>
       </section>
 
-      <!-- TABLA -->
-      <section class="panel">
-        <table>
-          <thead>
-            <tr>
-              <th>Fecha</th>
-              <th>Tipo</th>
-              <th>Concepto</th>
-              <th>Trabajador</th>
-              <th>Gratis</th>
-              <th>Importe</th>
-              <th>Neto</th>
-              <th>Acciones</th>
-            </tr>
-          </thead>
-          <tbody id="tabla"></tbody>
-        </table>
+      <!-- TABLE -->
+      <section class="panel tablepanel">
+        <div class="panel__head row">
+          <div>
+            <h2>Movimientos</h2>
+            <p>Los movimientos se guardan en Firestore y se ven en tiempo real.</p>
+          </div>
 
-        <button onclick="descargarExcel()">Descargar Excel</button>
+          <button class="btn btn--secondary" type="button" onclick="descargarExcel()">Descargar Excel</button>
+        </div>
+
+        <div class="tablewrap">
+          <table class="table">
+            <thead>
+              <tr>
+                <th>Fecha</th>
+                <th>Tipo</th>
+                <th>Concepto</th>
+                <th>Trabajador</th>
+                <th>Gratis</th>
+                <th class="right">Importe</th>
+                <th class="right">Neto</th>
+                <th class="right">Acciones</th>
+              </tr>
+            </thead>
+            <tbody id="tabla">
+              <tr><td colspan="8">Inicia sesión para ver los movimientos.</td></tr>
+            </tbody>
+          </table>
+        </div>
       </section>
-
     </section>
   </main>
 
-  <!-- ⚠️ IMPORTANTE -->
   <script type="module" src="script.js"></script>
 </body>
 </html>
-
