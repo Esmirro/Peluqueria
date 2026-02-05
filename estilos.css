@@ -54,7 +54,14 @@ body{
 .title{ font-weight:800; letter-spacing:.2px; }
 .subtitle{ color:var(--muted); font-size:13px; margin-top:2px; }
 .authbar__right{ display:flex; align-items:center; gap:10px; }
-.authbar__email{ color:var(--muted); font-size:13px; max-width: 340px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+.authbar__email{
+  color:var(--muted);
+  font-size:13px;
+  max-width: 340px;
+  overflow:hidden;
+  text-overflow:ellipsis;
+  white-space:nowrap;
+}
 
 /* ===== LAYOUT ===== */
 .layout{
@@ -62,7 +69,7 @@ body{
   margin: 14px auto 30px;
   padding: 0 14px;
   display:grid;
-  grid-template-columns: 420px 1fr;
+  grid-template-columns: 520px 1fr;  /* ⬅️ sidebar más ancha en PC */
   gap: 14px;
 }
 
@@ -93,12 +100,12 @@ body{
   grid-template-columns: 1fr 1fr;
   gap: 12px;
 }
-
 .sidecard{
   border:1px solid rgba(255,255,255,0.10);
   background: rgba(255,255,255,0.04);
   border-radius: var(--radius2);
   overflow:hidden;
+  min-width: 0; /* ⬅️ evita desbordes raros */
 }
 .sidecard__head{
   padding: 10px 12px;
@@ -137,18 +144,35 @@ body{
   justify-content:space-between;
 }
 
-/* Facturación table */
-.miniwrap{ padding: 10px 12px 12px; overflow:auto; }
+/* ===== Facturación table (ALINEADA) ===== */
+.miniwrap{
+  padding: 10px 12px 12px;
+  overflow-x: hidden; /* ⬅️ en PC no scroll horizontal */
+}
+
 .minitable{
   width:100%;
   border-collapse: collapse;
-  min-width: 320px;
+  table-layout: fixed;       /* ⬅️ clave para que alinee */
+  min-width: 0;
+  font-variant-numeric: tabular-nums; /* ⬅️ números alineados */
 }
+
 .minitable th, .minitable td{
   padding: 8px 8px;
   border-bottom: 1px solid rgba(255,255,255,0.09);
   font-size: 12px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
+
+/* Anchos fijos por columna */
+.minitable th:nth-child(1), .minitable td:nth-child(1){ width: 64px; } /* Trab. */
+.minitable th:nth-child(2), .minitable td:nth-child(2){ width: 92px; } /* Fact. */
+.minitable th:nth-child(3), .minitable td:nth-child(3){ width: 92px; } /* Nómina */
+.minitable th:nth-child(4), .minitable td:nth-child(4){ width: 92px; } /* Dif. */
+
 .minitable thead th{
   position: sticky;
   top:0;
@@ -158,6 +182,7 @@ body{
   color: rgba(255,255,255,0.78);
   text-align:left;
 }
+
 .right{ text-align:right; }
 
 .totals3{
@@ -244,7 +269,7 @@ body{
 .btn--secondary:hover{ background: rgba(96,165,250,.22); }
 .btn--ghost{ background: transparent; }
 
-/* ===== TABLE ===== */
+/* ===== MOVIMIENTOS TABLE ===== */
 .tablepanel{ overflow: hidden; }
 .tablewrap{
   padding: 12px 12px 14px;
@@ -280,17 +305,20 @@ body{
   .form{ grid-template-columns: 1fr 1fr; }
   .field--switch{ padding-top: 0; }
   .sidegrid{ grid-template-columns: 1fr; }
+  .miniwrap{ overflow-x: auto; } /* en móvil sí scroll si hace falta */
   .table{ min-width: 920px; }
 }
 
-/* ===== FORZAR VISTA (BOTÓN) ===== */
+/* ===== FORZAR VISTA (BOTÓN) =====
+   SOLO layout. No tocamos colores.
+*/
 body.force-mobile .layout{ grid-template-columns: 1fr !important; }
 body.force-mobile .stats{ grid-template-columns: 1fr !important; }
 body.force-mobile .sidegrid{ grid-template-columns: 1fr !important; }
 body.force-mobile .form{ grid-template-columns: 1fr 1fr !important; }
-body.force-mobile .tablewrap{ max-height: 62vh; }
-body.force-mobile .table{ min-width: 920px; }
+body.force-mobile .miniwrap{ overflow-x: auto !important; }
 
-body.force-desktop .layout{ grid-template-columns: 420px 1fr !important; }
+body.force-desktop .layout{ grid-template-columns: 520px 1fr !important; }
 body.force-desktop .sidegrid{ grid-template-columns: 1fr 1fr !important; }
 body.force-desktop .stats{ grid-template-columns: repeat(3, 1fr) !important; }
+body.force-desktop .miniwrap{ overflow-x: hidden !important; }
