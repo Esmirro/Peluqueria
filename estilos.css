@@ -69,7 +69,7 @@ body{
   margin: 14px auto 30px;
   padding: 0 14px;
   display:grid;
-  grid-template-columns: 520px 1fr;  /* ⬅️ sidebar más ancha en PC */
+  grid-template-columns: 560px 1fr; /* ⬅️ sidebar más ancha en PC */
   gap: 14px;
 }
 
@@ -100,13 +100,15 @@ body{
   grid-template-columns: 1fr 1fr;
   gap: 12px;
 }
+
 .sidecard{
   border:1px solid rgba(255,255,255,0.10);
   background: rgba(255,255,255,0.04);
   border-radius: var(--radius2);
   overflow:hidden;
-  min-width: 0; /* ⬅️ evita desbordes raros */
+  min-width: 0;
 }
+
 .sidecard__head{
   padding: 10px 12px;
   border-bottom: 1px solid rgba(255,255,255,0.10);
@@ -144,18 +146,18 @@ body{
   justify-content:space-between;
 }
 
-/* ===== Facturación table (ALINEADA) ===== */
+/* ===== Facturación table (alineada) ===== */
 .miniwrap{
   padding: 10px 12px 12px;
-  overflow-x: hidden; /* ⬅️ en PC no scroll horizontal */
+  overflow-x: hidden; /* PC: sin scroll horizontal */
 }
 
 .minitable{
   width:100%;
   border-collapse: collapse;
-  table-layout: fixed;       /* ⬅️ clave para que alinee */
+  table-layout: fixed;
   min-width: 0;
-  font-variant-numeric: tabular-nums; /* ⬅️ números alineados */
+  font-variant-numeric: tabular-nums;
 }
 
 .minitable th, .minitable td{
@@ -167,11 +169,11 @@ body{
   text-overflow: ellipsis;
 }
 
-/* Anchos fijos por columna */
+/* anchos fijos por columna */
 .minitable th:nth-child(1), .minitable td:nth-child(1){ width: 64px; } /* Trab. */
-.minitable th:nth-child(2), .minitable td:nth-child(2){ width: 92px; } /* Fact. */
-.minitable th:nth-child(3), .minitable td:nth-child(3){ width: 92px; } /* Nómina */
-.minitable th:nth-child(4), .minitable td:nth-child(4){ width: 92px; } /* Dif. */
+.minitable th:nth-child(2), .minitable td:nth-child(2){ width: 104px; } /* Fact. */
+.minitable th:nth-child(3), .minitable td:nth-child(3){ width: 104px; } /* Nómina */
+.minitable th:nth-child(4), .minitable td:nth-child(4){ width: 104px; } /* Dif. */
 
 .minitable thead th{
   position: sticky;
@@ -185,6 +187,7 @@ body{
 
 .right{ text-align:right; }
 
+/* ===== Totales pro (base) ===== */
 .totals3{
   padding: 10px 12px 12px;
   display:grid;
@@ -200,6 +203,7 @@ body{
   background: rgba(255,255,255,0.03);
 }
 .totals3 span{ color:var(--muted); font-size:12px; }
+.totals3 b{ font-variant-numeric: tabular-nums; }
 
 /* ===== FORM ===== */
 .form{
@@ -305,20 +309,55 @@ body{
   .form{ grid-template-columns: 1fr 1fr; }
   .field--switch{ padding-top: 0; }
   .sidegrid{ grid-template-columns: 1fr; }
-  .miniwrap{ overflow-x: auto; } /* en móvil sí scroll si hace falta */
   .table{ min-width: 920px; }
+
+  /* móvil: facturación sin romperse */
+  .miniwrap{ overflow-x: auto; }
+  .minitable{
+    table-layout: auto;
+    min-width: 420px;
+  }
+}
+
+/* ===== PRO: sidebar apilada en PC + 3 tarjetas horizontales ===== */
+@media (min-width: 981px){
+  /* Usa el hueco de abajo: apila pagos y facturación */
+  .sidegrid{
+    grid-template-columns: 1fr;
+  }
+
+  /* Más aire en la lista de pagos */
+  .workers{ gap:10px; }
+  .worker{ padding:12px 14px; }
+
+  /* Los 3 totales en horizontal */
+  .totals3{
+    grid-template-columns: 1fr 1fr 1fr;
+    gap:10px;
+  }
+  .totals3 > div{
+    flex-direction: column;
+    align-items: flex-start;
+    gap:6px;
+    padding:12px 12px;
+    background: rgba(255,255,255,0.035);
+  }
+  .totals3 span{ font-size:12px; }
+  .totals3 b{ font-size:16px; font-weight:900; }
 }
 
 /* ===== FORZAR VISTA (BOTÓN) =====
-   SOLO layout. No tocamos colores.
+   SOLO layout: no tocamos colores.
 */
 body.force-mobile .layout{ grid-template-columns: 1fr !important; }
 body.force-mobile .stats{ grid-template-columns: 1fr !important; }
 body.force-mobile .sidegrid{ grid-template-columns: 1fr !important; }
 body.force-mobile .form{ grid-template-columns: 1fr 1fr !important; }
 body.force-mobile .miniwrap{ overflow-x: auto !important; }
+body.force-mobile .minitable{ table-layout:auto !important; min-width: 420px !important; }
 
-body.force-desktop .layout{ grid-template-columns: 520px 1fr !important; }
-body.force-desktop .sidegrid{ grid-template-columns: 1fr 1fr !important; }
+body.force-desktop .layout{ grid-template-columns: 560px 1fr !important; }
+body.force-desktop .sidegrid{ grid-template-columns: 1fr !important; } /* PC: apilado */
 body.force-desktop .stats{ grid-template-columns: repeat(3, 1fr) !important; }
 body.force-desktop .miniwrap{ overflow-x: hidden !important; }
+body.force-desktop .totals3{ grid-template-columns: 1fr 1fr 1fr !important; }
