@@ -5,12 +5,10 @@
   <title>Control de Caja</title>
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
 
-  <!-- Fuente -->
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;800&display=swap" rel="stylesheet">
 
-  <!-- CSS -->
   <link rel="stylesheet" href="estilos.css" />
 
   <!-- SheetJS -->
@@ -32,14 +30,20 @@
       <button id="viewToggleBtn" class="btn btn--ghost" type="button" title="Cambiar vista">
         Vista: PC
       </button>
-
       <span id="userEmail" class="authbar__email"></span>
       <button id="loginBtn" class="btn btn--primary" type="button">Entrar con Google</button>
       <button id="logoutBtn" class="btn btn--ghost" type="button" style="display:none">Salir</button>
     </div>
   </div>
 
-  <main class="layout">
+  <!-- TABS -->
+  <div class="tabs-bar">
+    <button class="tab-btn tab-btn--active" data-tab="caja" type="button">💰 Caja</button>
+    <button class="tab-btn" data-tab="config" type="button">⚙️ Configuración</button>
+  </div>
+
+  <!-- ========== TAB: CAJA ========== -->
+  <main class="layout" id="tab-caja">
     <!-- SIDEBAR -->
     <aside class="panel sidebar">
       <div class="panel__head">
@@ -60,9 +64,7 @@
               <h3>Pagos por trabajador</h3>
               <small>Nómina (neto) por mes</small>
             </div>
-
             <div id="resumenTrabajadores" class="workers"></div>
-
             <div class="totalbox">
               <span>Total nómina</span>
               <b id="totalPagar">0 €</b>
@@ -75,7 +77,6 @@
               <h3>Facturación</h3>
               <small>Facturación - Nómina</small>
             </div>
-
             <div class="miniwrap">
               <table class="minitable">
                 <thead>
@@ -91,7 +92,6 @@
                 </tbody>
               </table>
             </div>
-
             <div class="totals3">
               <div><span>Total Fact.</span><b id="totalFacturacion">0 €</b></div>
               <div><span>Total Nómina</span><b id="totalNomina">0 €</b></div>
@@ -108,7 +108,7 @@
       <section class="panel">
         <div class="panel__head">
           <h2>Nuevo movimiento</h2>
-          <p>Gratis no suma a ingresos. Neto = 40% / 100% si gratis (solo Ingresos).</p>
+          <p>Gratis no suma a ingresos. Neto = % según trabajador / 100% si gratis (solo Ingresos).</p>
         </div>
 
         <form id="form" class="form">
@@ -119,30 +119,18 @@
 
           <div class="field">
             <label for="tipo">Tipo</label>
-            <select id="tipo" name="tipo" required>
-              <option value="Ingreso">Ingreso</option>
-              <option value="Gasto">Gasto</option>
-              <option value="Inicio de Caja">Inicio de Caja</option>
-            </select>
+            <select id="tipo" name="tipo" required></select>
           </div>
 
           <div class="field">
             <label for="concepto">Concepto</label>
-            <select id="concepto" name="concepto" required>
-              <option value="Corte">Corte</option>
-              <option value="Inicio Caja">Inicio Caja</option>
-            </select>
+            <select id="concepto" name="concepto" required></select>
           </div>
 
           <div class="field">
             <label for="trabajador">Trabajador</label>
             <select id="trabajador" name="trabajador">
               <option value="">—</option>
-              <option value="TR02">TR02</option>
-              <option value="TR03">TR03</option>
-              <option value="TR04">TR04</option>
-              <option value="TR05">TR05</option>
-              <option value="TR06">TR06</option>
             </select>
           </div>
 
@@ -165,19 +153,31 @@
         </form>
       </section>
 
-      <!-- STATS -->
-      <section class="stats">
-        <div class="stat">
-          <div class="stat__label">Ingresos</div>
-          <div class="stat__value" id="ingresos">0 €</div>
+      <!-- STATS + MES FILTRO -->
+      <section class="panel stats-panel">
+        <div class="panel__head row">
+          <div>
+            <h2>Resumen</h2>
+            <p>Ingresos, gastos y balance filtrados por mes.</p>
+          </div>
+          <div class="field" style="min-width:160px;">
+            <label for="mesFiltroStats">Mes stats</label>
+            <input type="month" id="mesFiltroStats" />
+          </div>
         </div>
-        <div class="stat">
-          <div class="stat__label">Gastos</div>
-          <div class="stat__value" id="gastos">0 €</div>
-        </div>
-        <div class="stat">
-          <div class="stat__label">Balance</div>
-          <div class="stat__value" id="balance">0 €</div>
+        <div class="stats">
+          <div class="stat">
+            <div class="stat__label">Ingresos</div>
+            <div class="stat__value" id="ingresos">0 €</div>
+          </div>
+          <div class="stat">
+            <div class="stat__label">Gastos</div>
+            <div class="stat__value" id="gastos">0 €</div>
+          </div>
+          <div class="stat">
+            <div class="stat__label">Balance</div>
+            <div class="stat__value" id="balance">0 €</div>
+          </div>
         </div>
       </section>
 
@@ -188,8 +188,13 @@
             <h2>Movimientos</h2>
             <p>Los movimientos se guardan en Firestore y se ven en tiempo real.</p>
           </div>
-
-          <button class="btn btn--secondary" type="button" onclick="descargarExcel()">Descargar Excel</button>
+          <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;">
+            <div class="field" style="min-width:150px;">
+              <label for="mesFiltroTabla">Filtrar tabla</label>
+              <input type="month" id="mesFiltroTabla" />
+            </div>
+            <button class="btn btn--secondary" type="button" onclick="descargarExcel()">Descargar Excel</button>
+          </div>
         </div>
 
         <div class="tablewrap">
@@ -212,6 +217,59 @@
           </table>
         </div>
       </section>
+    </section>
+  </main>
+
+  <!-- ========== TAB: CONFIGURACIÓN ========== -->
+  <main class="layout layout--config" id="tab-config" style="display:none">
+    <section class="main" style="grid-column:1/-1">
+
+      <div class="config-grid">
+
+        <!-- TIPOS -->
+        <section class="panel">
+          <div class="panel__head">
+            <h2>Tipos de movimiento</h2>
+            <p>Gestiona los tipos disponibles en el formulario.</p>
+          </div>
+          <div class="config-list" id="tiposList"></div>
+          <div class="config-add">
+            <input type="text" id="nuevoTipo" placeholder="Nuevo tipo…" class="config-input" />
+            <button class="btn btn--primary" type="button" id="addTipoBtn">Añadir</button>
+          </div>
+        </section>
+
+        <!-- CONCEPTOS -->
+        <section class="panel">
+          <div class="panel__head">
+            <h2>Conceptos</h2>
+            <p>Gestiona los conceptos disponibles en el formulario.</p>
+          </div>
+          <div class="config-list" id="conceptosList"></div>
+          <div class="config-add">
+            <input type="text" id="nuevoConcepto" placeholder="Nuevo concepto…" class="config-input" />
+            <button class="btn btn--primary" type="button" id="addConceptoBtn">Añadir</button>
+          </div>
+        </section>
+
+        <!-- TRABAJADORES -->
+        <section class="panel" style="grid-column: 1 / -1;">
+          <div class="panel__head">
+            <h2>Trabajadores</h2>
+            <p>Gestiona los trabajadores y su porcentaje de nómina.</p>
+          </div>
+          <div class="config-list" id="trabajadoresList"></div>
+          <div class="config-add config-add--worker">
+            <input type="text" id="nuevoTrabajador" placeholder="ID trabajador (ej: TR07)…" class="config-input" />
+            <div class="field" style="min-width:160px;">
+              <label for="nuevoPorcentaje" style="color:var(--muted);font-size:12px;">% Nómina</label>
+              <input type="number" id="nuevoPorcentaje" placeholder="40" min="0" max="100" step="1" value="40" class="config-input" />
+            </div>
+            <button class="btn btn--primary" type="button" id="addTrabajadorBtn">Añadir</button>
+          </div>
+        </section>
+
+      </div>
     </section>
   </main>
 
