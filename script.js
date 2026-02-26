@@ -177,15 +177,16 @@ async function loadConfig() {
     const snap = await getDoc(doc(db, "config", "main"));
     if (snap.exists()) {
       const d = snap.data();
-      if (d.tipos) config.tipos = d.tipos;
-      if (d.conceptos) config.conceptos = d.conceptos;
-      if (d.trabajadores) config.trabajadores = d.trabajadores;
+      if (Array.isArray(d.tipos) && d.tipos.length) config.tipos = d.tipos;
+      if (Array.isArray(d.conceptos) && d.conceptos.length) config.conceptos = d.conceptos;
+      if (Array.isArray(d.trabajadores) && d.trabajadores.length) config.trabajadores = d.trabajadores;
     }
   } catch (e) {
-    console.warn("No se pudo cargar config, usando defaults:", e);
+    console.warn("loadConfig: usando defaults.", e.code || e.message);
+  } finally {
+    applyConfigToForm();
+    renderConfigTab();
   }
-  applyConfigToForm();
-  renderConfigTab();
 }
 
 async function saveConfig() {
@@ -389,14 +390,23 @@ onAuthStateChanged(auth, (user) => {
   loginBtn && (loginBtn.style.display = "none");
   logoutBtn && (logoutBtn.style.display = "inline-block");
 
-  loadConfig().then(() => iniciarRealtime());
+  // Siempre arrancamos realtime; la config es opcional
+  iniciarRealtime();
+  loadConfig().catch(e => {
+    console.warn("⚠️ Config no disponible (puede ser permisos Firestore), usando defaults:", e.code || e.message);
+    // Aseguramos que el form tenga los defaults aunque falle config
+    applyConfigToForm();
+    renderConfigTab();
+  });
 });
 
 function iniciarRealtime() {
   if (unsubscribe) unsubscribe();
+  console.log("🔄 Iniciando Firestore realtime...");
   const q = query(collection(db, "movimientos"), orderBy("fecha", "desc"));
   unsubscribe = onSnapshot(q,
     (snap) => {
+      console.log(`✅ Firestore: ${snap.docs.length} movimientos`);
       movimientos = snap.docs.map(d => ({ id: d.id, ...d.data() }));
       render();
     },
