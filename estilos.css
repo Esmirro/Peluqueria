@@ -1,220 +1,363 @@
-<!doctype html>
-<html lang="es">
-<head>
-  <meta charset="UTF-8" />
-  <title>Control de Caja</title>
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+:root{
+  --bg1:#061018;
+  --bg2:#0b1d27;
+  --panel: rgba(255,255,255,0.06);
+  --border: rgba(255,255,255,0.10);
+  --text: rgba(255,255,255,0.92);
+  --muted: rgba(255,255,255,0.65);
+  --accent: #22c55e;
+  --accent2:#60a5fa;
+  --danger:#ef4444;
+  --shadow: 0 18px 60px rgba(0,0,0,.45);
+  --radius: 18px;
+  --radius2: 14px;
+}
 
-  <!-- Fuente -->
-  <link rel="preconnect" href="https://fonts.googleapis.com">
-  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;800&display=swap" rel="stylesheet">
+*{ box-sizing:border-box; }
+html,body{ height:100%; }
+body{
+  margin:0;
+  font-family: Inter, system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif;
+  color:var(--text);
+  background: radial-gradient(1200px 600px at 20% 0%, #133244 0%, transparent 60%),
+              radial-gradient(900px 700px at 90% 20%, #0f2a2c 0%, transparent 55%),
+              linear-gradient(180deg, var(--bg2), var(--bg1));
+}
 
-  <!-- CSS -->
-  <link rel="stylesheet" href="estilos.css" />
+/* ===== TOP BAR ===== */
+.authbar{
+  max-width: 1280px;
+  margin: 14px auto 0;
+  padding: 10px 14px;
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  gap:12px;
+  border:1px solid var(--border);
+  background: rgba(255,255,255,0.05);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow);
+}
+.authbar__left{
+  display:flex;
+  align-items:center;
+  gap:12px;
+  min-width: 240px;
+}
+.pill{
+  width:42px;height:42px;border-radius:14px;
+  display:flex;align-items:center;justify-content:center;
+  background: linear-gradient(135deg, rgba(34,197,94,.35), rgba(96,165,250,.28));
+  border:1px solid rgba(255,255,255,0.14);
+  font-weight:800;
+}
+.title{ font-weight:800; letter-spacing:.2px; }
+.subtitle{ color:var(--muted); font-size:13px; margin-top:2px; }
+.authbar__right{ display:flex; align-items:center; gap:10px; }
+.authbar__email{
+  color:var(--muted);
+  font-size:13px;
+  max-width: 340px;
+  overflow:hidden;
+  text-overflow:ellipsis;
+  white-space:nowrap;
+}
 
-  <!-- SheetJS -->
-  <script src="https://cdn.jsdelivr.net/npm/xlsx/dist/xlsx.full.min.js"></script>
-</head>
+/* ===== LAYOUT ===== */
+.layout{
+  max-width: 1280px;
+  margin: 14px auto 30px;
+  padding: 0 14px;
+  display:grid;
+  grid-template-columns: 560px 1fr; /* ⬅️ sidebar más ancha en PC */
+  gap: 14px;
+}
 
-<body>
-  <!-- AUTH BAR -->
-  <div class="authbar" id="authBar">
-    <div class="authbar__left">
-      <div class="pill">€</div>
-      <div>
-        <div class="title">Control de Caja</div>
-        <div class="subtitle">Caja compartida con trabajadores</div>
-      </div>
-    </div>
+.panel{
+  border: 1px solid var(--border);
+  background: var(--panel);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow);
+  overflow:hidden;
+}
 
-    <div class="authbar__right">
-      <button id="viewToggleBtn" class="btn btn--ghost" type="button" title="Cambiar vista">
-        Vista: PC
-      </button>
+.panel__head{
+  padding: 14px 16px;
+  border-bottom: 1px solid var(--border);
+  background: rgba(255,255,255,0.04);
+}
+.panel__head h2{ margin:0; font-size:16px; }
+.panel__head p{ margin:6px 0 0; color:var(--muted); font-size:13px; line-height:1.35; }
+.panel__head.row{ display:flex; align-items:flex-start; justify-content:space-between; gap:12px; }
 
-      <span id="userEmail" class="authbar__email"></span>
-      <button id="loginBtn" class="btn btn--primary" type="button">Entrar con Google</button>
-      <button id="logoutBtn" class="btn btn--ghost" type="button" style="display:none">Salir</button>
-    </div>
-  </div>
+.panel__body{ padding: 14px 16px; }
+.main{ display:flex; flex-direction:column; gap:14px; }
 
-  <main class="layout">
-    <!-- SIDEBAR -->
-    <aside class="panel sidebar">
-      <div class="panel__head">
-        <h2>Pagos y Facturación</h2>
-        <p>Filtra por mes y revisa pagos (nómina) y facturación por trabajador.</p>
-      </div>
+/* ===== SIDEBAR GRID ===== */
+.sidegrid{
+  margin-top: 10px;
+  display:grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+}
 
-      <div class="panel__body">
-        <div class="field">
-          <label for="mesFiltro">Mes</label>
-          <input type="month" id="mesFiltro" />
-        </div>
+.sidecard{
+  border:1px solid rgba(255,255,255,0.10);
+  background: rgba(255,255,255,0.04);
+  border-radius: var(--radius2);
+  overflow:hidden;
+  min-width: 0;
+}
 
-        <div class="sidegrid">
-          <!-- Pagos -->
-          <section class="sidecard">
-            <div class="sidecard__head">
-              <h3>Pagos por trabajador</h3>
-              <small>Nómina (neto) por mes</small>
-            </div>
+.sidecard__head{
+  padding: 10px 12px;
+  border-bottom: 1px solid rgba(255,255,255,0.10);
+  background: rgba(0,0,0,0.12);
+}
+.sidecard__head h3{ margin:0; font-size:14px; }
+.sidecard__head small{ color:var(--muted); }
 
-            <div id="resumenTrabajadores" class="workers"></div>
+/* Workers list */
+.workers{
+  padding: 10px 12px;
+  display:flex;
+  flex-direction:column;
+  gap:8px;
+}
+.worker{
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  padding:10px 12px;
+  border:1px solid rgba(255,255,255,0.10);
+  border-radius: 12px;
+  background: rgba(255,255,255,0.03);
+}
+.worker small{ color:var(--muted); display:block; margin-top:2px; }
 
-            <div class="totalbox">
-              <span>Total nómina</span>
-              <b id="totalPagar">0 €</b>
-            </div>
-          </section>
+.totalbox{
+  margin: 0 12px 12px;
+  padding:12px;
+  border:1px solid rgba(34,197,94,.25);
+  border-radius: 12px;
+  background: rgba(34,197,94,.08);
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+}
 
-          <!-- Facturación -->
-          <section class="sidecard">
-            <div class="sidecard__head">
-              <h3>Facturación</h3>
-              <small>Facturación - Nómina</small>
-            </div>
+/* ===== Facturación table (alineada) ===== */
+.miniwrap{
+  padding: 10px 12px 12px;
+  overflow-x: hidden; /* PC: sin scroll horizontal */
+}
 
-            <div class="miniwrap">
-              <table class="minitable">
-                <thead>
-                  <tr>
-                    <th>Trab.</th>
-                    <th class="right">Fact.</th>
-                    <th class="right">Nómina</th>
-                    <th class="right">Dif.</th>
-                  </tr>
-                </thead>
-                <tbody id="facturacionBody">
-                  <tr><td colspan="4">—</td></tr>
-                </tbody>
-              </table>
-            </div>
+.minitable{
+  width:100%;
+  border-collapse: collapse;
+  table-layout: fixed;
+  min-width: 0;
+  font-variant-numeric: tabular-nums;
+}
 
-            <div class="totals3">
-              <div><span>Total Fact.</span><b id="totalFacturacion">0 €</b></div>
-              <div><span>Total Nómina</span><b id="totalNomina">0 €</b></div>
-              <div><span>Total Dif.</span><b id="totalDiferencia">0 €</b></div>
-            </div>
-          </section>
-        </div>
-      </div>
-    </aside>
+.minitable th, .minitable td{
+  padding: 8px 8px;
+  border-bottom: 1px solid rgba(255,255,255,0.09);
+  font-size: 12px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
 
-    <!-- MAIN -->
-    <section class="main">
-      <!-- FORM -->
-      <section class="panel">
-        <div class="panel__head">
-          <h2>Nuevo movimiento</h2>
-          <p>Gratis no suma a ingresos. Neto = 40% / 100% si gratis (solo Ingresos).</p>
-        </div>
+/* anchos fijos por columna */
+.minitable th:nth-child(1), .minitable td:nth-child(1){ width: 64px; } /* Trab. */
+.minitable th:nth-child(2), .minitable td:nth-child(2){ width: 104px; } /* Fact. */
+.minitable th:nth-child(3), .minitable td:nth-child(3){ width: 104px; } /* Nómina */
+.minitable th:nth-child(4), .minitable td:nth-child(4){ width: 104px; } /* Dif. */
 
-        <form id="form" class="form">
-          <div class="field">
-            <label for="fecha">Fecha</label>
-            <input type="date" id="fecha" name="fecha" required />
-          </div>
+.minitable thead th{
+  position: sticky;
+  top:0;
+  background: rgba(10,20,28,0.92);
+  backdrop-filter: blur(8px);
+  z-index: 1;
+  color: rgba(255,255,255,0.78);
+  text-align:left;
+}
 
-          <div class="field">
-            <label for="tipo">Tipo</label>
-            <select id="tipo" name="tipo" required>
-              <option value="Ingreso">Ingreso</option>
-              <option value="Gasto">Gasto</option>
-              <option value="Inicio de Caja">Inicio de Caja</option>
-            </select>
-          </div>
+.right{ text-align:right; }
 
-          <div class="field">
-            <label for="concepto">Concepto</label>
-            <select id="concepto" name="concepto" required>
-              <option value="Corte">Corte</option>
-              <option value="Inicio Caja">Inicio Caja</option>
-            </select>
-          </div>
+/* ===== Totales pro (base) ===== */
+.totals3{
+  padding: 10px 12px 12px;
+  display:grid;
+  gap:8px;
+}
+.totals3 > div{
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  padding:10px 12px;
+  border:1px solid rgba(255,255,255,0.10);
+  border-radius: 12px;
+  background: rgba(255,255,255,0.03);
+}
+.totals3 span{ color:var(--muted); font-size:12px; }
+.totals3 b{ font-variant-numeric: tabular-nums; }
 
-          <div class="field">
-            <label for="trabajador">Trabajador</label>
-            <select id="trabajador" name="trabajador">
-              <option value="">—</option>
-              <option value="TR02">TR02</option>
-              <option value="TR03">TR03</option>
-              <option value="TR04">TR04</option>
-              <option value="TR05">TR05</option>
-              <option value="TR06">TR06</option>
-            </select>
-          </div>
+/* ===== FORM ===== */
+.form{
+  display:grid;
+  grid-template-columns: repeat(6, minmax(0, 1fr));
+  gap: 12px;
+  padding: 14px 16px;
+}
+.field{ display:flex; flex-direction:column; gap:6px; }
+.field label{ color:var(--muted); font-size:12px; }
+.field input, .field select{
+  width:100%;
+  padding:10px 12px;
+  border-radius: 12px;
+  border: 1px solid var(--border);
+  background: rgba(0,0,0,0.18);
+  color: var(--text);
+  outline:none;
+}
+.field input:focus, .field select:focus{
+  border-color: rgba(96,165,250,.45);
+  box-shadow: 0 0 0 3px rgba(96,165,250,.15);
+}
+.field--switch{ justify-content:flex-end; padding-top: 22px; }
+.switch{ display:flex; align-items:center; gap:10px; user-select:none; }
+.switch input{ transform: scale(1.1); }
 
-          <div class="field">
-            <label for="importe">Importe</label>
-            <input type="number" id="importe" name="importe" step="0.01" placeholder="0.00" required />
-          </div>
+.form__actions{
+  grid-column: 1 / -1;
+  display:flex;
+  gap:10px;
+  justify-content:flex-end;
+}
 
-          <div class="field field--switch">
-            <label class="switch">
-              <input type="checkbox" id="gratis" name="gratis" />
-              <span>Gratis</span>
-            </label>
-          </div>
+/* ===== STATS ===== */
+.stats{
+  display:grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 14px;
+}
+.stat{
+  border: 1px solid var(--border);
+  background: var(--panel);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow);
+  padding: 14px 16px;
+}
+.stat__label{ color:var(--muted); font-size:12px; }
+.stat__value{ font-size:20px; font-weight:800; margin-top:6px; }
 
-          <div class="form__actions">
-            <button class="btn btn--primary" type="submit" id="submitBtn">Añadir</button>
-            <button class="btn btn--ghost" type="button" id="cancelEditBtn" style="display:none">Cancelar edición</button>
-          </div>
-        </form>
-      </section>
+/* ===== BUTTONS ===== */
+.btn{
+  border: 1px solid var(--border);
+  padding: 10px 12px;
+  border-radius: 12px;
+  cursor:pointer;
+  color: var(--text);
+  background: rgba(255,255,255,0.06);
+  transition: transform .05s ease, background .15s ease, border-color .15s ease;
+  font-weight:700;
+}
+.btn:hover{ background: rgba(255,255,255,0.09); }
+.btn:active{ transform: translateY(1px); }
+.btn--primary{ border-color: rgba(34,197,94,.35); background: rgba(34,197,94,.16); }
+.btn--primary:hover{ background: rgba(34,197,94,.22); }
+.btn--secondary{ border-color: rgba(96,165,250,.35); background: rgba(96,165,250,.16); }
+.btn--secondary:hover{ background: rgba(96,165,250,.22); }
+.btn--ghost{ background: transparent; }
 
-      <!-- STATS -->
-      <section class="stats">
-        <div class="stat">
-          <div class="stat__label">Ingresos</div>
-          <div class="stat__value" id="ingresos">0 €</div>
-        </div>
-        <div class="stat">
-          <div class="stat__label">Gastos</div>
-          <div class="stat__value" id="gastos">0 €</div>
-        </div>
-        <div class="stat">
-          <div class="stat__label">Balance</div>
-          <div class="stat__value" id="balance">0 €</div>
-        </div>
-      </section>
+/* ===== MOVIMIENTOS TABLE ===== */
+.tablepanel{ overflow: hidden; }
+.tablewrap{
+  padding: 12px 12px 14px;
+  overflow:auto;
+  max-height: 56vh;
+}
+.table{
+  width: 100%;
+  border-collapse: collapse;
+  min-width: 980px;
+}
+.table th, .table td{
+  padding: 10px 10px;
+  border-bottom: 1px solid rgba(255,255,255,0.09);
+  font-size: 13px;
+  text-align:left;
+  vertical-align: middle;
+}
+.table thead th{
+  position: sticky;
+  top: 0;
+  background: rgba(10,20,28,0.92);
+  backdrop-filter: blur(8px);
+  z-index: 2;
+  font-size: 12px;
+  color: rgba(255,255,255,0.78);
+}
 
-      <!-- TABLE -->
-      <section class="panel tablepanel">
-        <div class="panel__head row">
-          <div>
-            <h2>Movimientos</h2>
-            <p>Los movimientos se guardan en Firestore y se ven en tiempo real.</p>
-          </div>
+/* ===== RESPONSIVE (AUTO) ===== */
+@media (max-width: 980px){
+  .layout{ grid-template-columns: 1fr; }
+  .stats{ grid-template-columns: 1fr; }
+  .form{ grid-template-columns: 1fr 1fr; }
+  .field--switch{ padding-top: 0; }
+  .sidegrid{ grid-template-columns: 1fr; }
+  .table{ min-width: 920px; }
 
-          <button class="btn btn--secondary" type="button" onclick="descargarExcel()">Descargar Excel</button>
-        </div>
+  /* móvil: facturación sin romperse */
+  .miniwrap{ overflow-x: auto; }
+  .minitable{
+    table-layout: auto;
+    min-width: 420px;
+  }
+}
 
-        <div class="tablewrap">
-          <table class="table">
-            <thead>
-              <tr>
-                <th>Fecha</th>
-                <th>Tipo</th>
-                <th>Concepto</th>
-                <th>Trabajador</th>
-                <th>Gratis</th>
-                <th class="right">Importe</th>
-                <th class="right">Neto</th>
-                <th class="right">Acciones</th>
-              </tr>
-            </thead>
-            <tbody id="tabla">
-              <tr><td colspan="8">Inicia sesión para ver los movimientos.</td></tr>
-            </tbody>
-          </table>
-        </div>
-      </section>
-    </section>
-  </main>
+/* ===== PRO: sidebar apilada en PC + 3 tarjetas horizontales ===== */
+@media (min-width: 981px){
+  /* Usa el hueco de abajo: apila pagos y facturación */
+  .sidegrid{
+    grid-template-columns: 1fr;
+  }
 
-  <script type="module" src="script.js"></script>
-</body>
-</html>
+  /* Más aire en la lista de pagos */
+  .workers{ gap:10px; }
+  .worker{ padding:12px 14px; }
+
+  /* Los 3 totales en horizontal */
+  .totals3{
+    grid-template-columns: 1fr 1fr 1fr;
+    gap:10px;
+  }
+  .totals3 > div{
+    flex-direction: column;
+    align-items: flex-start;
+    gap:6px;
+    padding:12px 12px;
+    background: rgba(255,255,255,0.035);
+  }
+  .totals3 span{ font-size:12px; }
+  .totals3 b{ font-size:16px; font-weight:900; }
+}
+
+/* ===== FORZAR VISTA (BOTÓN) =====
+   SOLO layout: no tocamos colores.
+*/
+body.force-mobile .layout{ grid-template-columns: 1fr !important; }
+body.force-mobile .stats{ grid-template-columns: 1fr !important; }
+body.force-mobile .sidegrid{ grid-template-columns: 1fr !important; }
+body.force-mobile .form{ grid-template-columns: 1fr 1fr !important; }
+body.force-mobile .miniwrap{ overflow-x: auto !important; }
+body.force-mobile .minitable{ table-layout:auto !important; min-width: 420px !important; }
+
+body.force-desktop .layout{ grid-template-columns: 560px 1fr !important; }
+body.force-desktop .sidegrid{ grid-template-columns: 1fr !important; } /* PC: apilado */
+body.force-desktop .stats{ grid-template-columns: repeat(3, 1fr) !important; }
+body.force-desktop .miniwrap{ overflow-x: hidden !important; }
+body.force-desktop .totals3{ grid-template-columns: 1fr 1fr 1fr !important; }
