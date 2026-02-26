@@ -63,14 +63,47 @@ body{
   white-space:nowrap;
 }
 
+/* ===== TABS ===== */
+.tabs-bar{
+  max-width: 1280px;
+  margin: 10px auto 0;
+  padding: 0 14px;
+  display: flex;
+  gap: 6px;
+}
+.tab-btn{
+  padding: 9px 20px;
+  border-radius: 12px 12px 0 0;
+  border: 1px solid var(--border);
+  border-bottom: none;
+  background: rgba(255,255,255,0.03);
+  color: var(--muted);
+  cursor: pointer;
+  font-weight: 700;
+  font-size: 14px;
+  transition: background .15s, color .15s;
+}
+.tab-btn:hover{ background: rgba(255,255,255,0.07); color: var(--text); }
+.tab-btn--active{
+  background: rgba(255,255,255,0.08);
+  color: var(--text);
+  border-color: rgba(255,255,255,0.14);
+}
+
 /* ===== LAYOUT ===== */
 .layout{
   max-width: 1280px;
-  margin: 14px auto 30px;
-  padding: 0 14px;
+  margin: 0 auto 30px;
+  padding: 14px 14px;
   display:grid;
-  grid-template-columns: 560px 1fr; /* ⬅️ sidebar más ancha en PC */
+  grid-template-columns: 560px 1fr;
   gap: 14px;
+  border-top: 1px solid var(--border);
+}
+
+/* Config layout: single column */
+.layout--config{
+  grid-template-columns: 1fr;
 }
 
 .panel{
@@ -88,7 +121,7 @@ body{
 }
 .panel__head h2{ margin:0; font-size:16px; }
 .panel__head p{ margin:6px 0 0; color:var(--muted); font-size:13px; line-height:1.35; }
-.panel__head.row{ display:flex; align-items:flex-start; justify-content:space-between; gap:12px; }
+.panel__head.row{ display:flex; align-items:flex-start; justify-content:space-between; gap:12px; flex-wrap:wrap; }
 
 .panel__body{ padding: 14px 16px; }
 .main{ display:flex; flex-direction:column; gap:14px; }
@@ -146,10 +179,10 @@ body{
   justify-content:space-between;
 }
 
-/* ===== Facturación table (alineada) ===== */
+/* ===== Facturación table ===== */
 .miniwrap{
   padding: 10px 12px 12px;
-  overflow-x: hidden; /* PC: sin scroll horizontal */
+  overflow-x: hidden;
 }
 
 .minitable{
@@ -169,11 +202,10 @@ body{
   text-overflow: ellipsis;
 }
 
-/* anchos fijos por columna */
-.minitable th:nth-child(1), .minitable td:nth-child(1){ width: 64px; } /* Trab. */
-.minitable th:nth-child(2), .minitable td:nth-child(2){ width: 104px; } /* Fact. */
-.minitable th:nth-child(3), .minitable td:nth-child(3){ width: 104px; } /* Nómina */
-.minitable th:nth-child(4), .minitable td:nth-child(4){ width: 104px; } /* Dif. */
+.minitable th:nth-child(1), .minitable td:nth-child(1){ width: 64px; }
+.minitable th:nth-child(2), .minitable td:nth-child(2){ width: 104px; }
+.minitable th:nth-child(3), .minitable td:nth-child(3){ width: 104px; }
+.minitable th:nth-child(4), .minitable td:nth-child(4){ width: 104px; }
 
 .minitable thead th{
   position: sticky;
@@ -187,7 +219,7 @@ body{
 
 .right{ text-align:right; }
 
-/* ===== Totales pro (base) ===== */
+/* ===== Totales pro ===== */
 .totals3{
   padding: 10px 12px 12px;
   display:grid;
@@ -204,6 +236,23 @@ body{
 }
 .totals3 span{ color:var(--muted); font-size:12px; }
 .totals3 b{ font-variant-numeric: tabular-nums; }
+
+/* ===== STATS PANEL ===== */
+.stats-panel .panel__head{ padding: 12px 16px; }
+.stats{
+  display:grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 14px;
+  padding: 14px 16px;
+}
+.stat{
+  border: 1px solid var(--border);
+  background: rgba(255,255,255,0.03);
+  border-radius: var(--radius2);
+  padding: 14px 16px;
+}
+.stat__label{ color:var(--muted); font-size:12px; }
+.stat__value{ font-size:20px; font-weight:800; margin-top:6px; }
 
 /* ===== FORM ===== */
 .form{
@@ -238,22 +287,6 @@ body{
   justify-content:flex-end;
 }
 
-/* ===== STATS ===== */
-.stats{
-  display:grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: 14px;
-}
-.stat{
-  border: 1px solid var(--border);
-  background: var(--panel);
-  border-radius: var(--radius);
-  box-shadow: var(--shadow);
-  padding: 14px 16px;
-}
-.stat__label{ color:var(--muted); font-size:12px; }
-.stat__value{ font-size:20px; font-weight:800; margin-top:6px; }
-
 /* ===== BUTTONS ===== */
 .btn{
   border: 1px solid var(--border);
@@ -264,6 +297,7 @@ body{
   background: rgba(255,255,255,0.06);
   transition: transform .05s ease, background .15s ease, border-color .15s ease;
   font-weight:700;
+  font-size: 13px;
 }
 .btn:hover{ background: rgba(255,255,255,0.09); }
 .btn:active{ transform: translateY(1px); }
@@ -302,7 +336,102 @@ body{
   color: rgba(255,255,255,0.78);
 }
 
-/* ===== RESPONSIVE (AUTO) ===== */
+/* ===== CONFIG TAB ===== */
+.config-grid{
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 14px;
+}
+
+.config-list{
+  padding: 10px 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  min-height: 60px;
+}
+
+.config-item{
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 10px 12px;
+  border: 1px solid rgba(255,255,255,0.09);
+  border-radius: 10px;
+  background: rgba(255,255,255,0.03);
+  gap: 10px;
+}
+
+.config-item__name{
+  font-size: 14px;
+  font-weight: 600;
+  flex: 1;
+}
+
+.config-item__pct{
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.config-pct-input{
+  width: 64px;
+  padding: 6px 8px;
+  border-radius: 8px;
+  border: 1px solid var(--border);
+  background: rgba(0,0,0,0.25);
+  color: var(--text);
+  font-size: 13px;
+  outline: none;
+  text-align: center;
+}
+.config-pct-input:focus{
+  border-color: rgba(96,165,250,.45);
+  box-shadow: 0 0 0 3px rgba(96,165,250,.12);
+}
+
+.config-item__del{
+  padding: 5px 9px;
+  font-size: 12px;
+  border-color: rgba(239,68,68,.3);
+  color: rgba(239,68,68,.8);
+  background: rgba(239,68,68,.08);
+  flex-shrink: 0;
+}
+.config-item__del:hover{
+  background: rgba(239,68,68,.18);
+}
+
+.config-add{
+  display: flex;
+  align-items: flex-end;
+  gap: 10px;
+  padding: 10px 16px 16px;
+  border-top: 1px solid rgba(255,255,255,0.07);
+  flex-wrap: wrap;
+}
+
+.config-add--worker{
+  align-items: center;
+}
+
+.config-input{
+  flex: 1;
+  min-width: 140px;
+  padding: 10px 12px;
+  border-radius: 12px;
+  border: 1px solid var(--border);
+  background: rgba(0,0,0,0.18);
+  color: var(--text);
+  font-size: 13px;
+  outline: none;
+}
+.config-input:focus{
+  border-color: rgba(96,165,250,.45);
+  box-shadow: 0 0 0 3px rgba(96,165,250,.15);
+}
+
+/* ===== RESPONSIVE ===== */
 @media (max-width: 980px){
   .layout{ grid-template-columns: 1fr; }
   .stats{ grid-template-columns: 1fr; }
@@ -310,27 +439,15 @@ body{
   .field--switch{ padding-top: 0; }
   .sidegrid{ grid-template-columns: 1fr; }
   .table{ min-width: 920px; }
-
-  /* móvil: facturación sin romperse */
   .miniwrap{ overflow-x: auto; }
-  .minitable{
-    table-layout: auto;
-    min-width: 420px;
-  }
+  .minitable{ table-layout: auto; min-width: 420px; }
+  .config-grid{ grid-template-columns: 1fr; }
 }
 
-/* ===== PRO: sidebar apilada en PC + 3 tarjetas horizontales ===== */
 @media (min-width: 981px){
-  /* Usa el hueco de abajo: apila pagos y facturación */
-  .sidegrid{
-    grid-template-columns: 1fr;
-  }
-
-  /* Más aire en la lista de pagos */
+  .sidegrid{ grid-template-columns: 1fr; }
   .workers{ gap:10px; }
   .worker{ padding:12px 14px; }
-
-  /* Los 3 totales en horizontal */
   .totals3{
     grid-template-columns: 1fr 1fr 1fr;
     gap:10px;
@@ -346,18 +463,18 @@ body{
   .totals3 b{ font-size:16px; font-weight:900; }
 }
 
-/* ===== FORZAR VISTA (BOTÓN) =====
-   SOLO layout: no tocamos colores.
-*/
+/* ===== FORZAR VISTA ===== */
 body.force-mobile .layout{ grid-template-columns: 1fr !important; }
 body.force-mobile .stats{ grid-template-columns: 1fr !important; }
 body.force-mobile .sidegrid{ grid-template-columns: 1fr !important; }
 body.force-mobile .form{ grid-template-columns: 1fr 1fr !important; }
 body.force-mobile .miniwrap{ overflow-x: auto !important; }
 body.force-mobile .minitable{ table-layout:auto !important; min-width: 420px !important; }
+body.force-mobile .config-grid{ grid-template-columns: 1fr !important; }
 
 body.force-desktop .layout{ grid-template-columns: 560px 1fr !important; }
-body.force-desktop .sidegrid{ grid-template-columns: 1fr !important; } /* PC: apilado */
+body.force-desktop .layout--config{ grid-template-columns: 1fr !important; }
+body.force-desktop .sidegrid{ grid-template-columns: 1fr !important; }
 body.force-desktop .stats{ grid-template-columns: repeat(3, 1fr) !important; }
 body.force-desktop .miniwrap{ overflow-x: hidden !important; }
 body.force-desktop .totals3{ grid-template-columns: 1fr 1fr 1fr !important; }
