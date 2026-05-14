@@ -225,6 +225,12 @@ const ingresosEl      = document.getElementById("ingresos");
 const gastosEl        = document.getElementById("gastos");
 const balanceEl       = document.getElementById("balance");
 
+// Stats filtros
+const statsDesdeEl      = document.getElementById("statsDesde");
+const statsHastaEl      = document.getElementById("statsHasta");
+const statsPeriodEl     = document.getElementById("statsPeriod");
+const btnLimpiarStatsEl = document.getElementById("btnLimpiarStats");
+
 const mesFiltroEl            = document.getElementById("mesFiltro");
 const resumenTrabajadoresEl  = document.getElementById("resumenTrabajadores");
 const totalPagarEl           = document.getElementById("totalPagar");
@@ -248,6 +254,15 @@ let editId      = null;
 
 /* Poblar selects al cargar */
 populateFormSelects();
+
+/* Stats filtros — listeners */
+statsDesdeEl?.addEventListener("change", () => renderStats());
+statsHastaEl?.addEventListener("change", () => renderStats());
+btnLimpiarStatsEl?.addEventListener("click", () => {
+  if (statsDesdeEl) statsDesdeEl.value = "";
+  if (statsHastaEl) statsHastaEl.value = "";
+  renderStats();
+});
 
 /* ─── Escuchar cambios en filtros ─── */
 [filtroDesdeEl, filtroHastaEl, filtroTipoEl, filtroConceptoEl, filtroTrabajadorEl].forEach(el => {
@@ -371,6 +386,7 @@ function resetUI() {
   if (ingresosEl) ingresosEl.textContent = "0,00 €";
   if (gastosEl)   gastosEl.textContent   = "0,00 €";
   if (balanceEl)  balanceEl.textContent  = "0,00 €";
+  if (statsPeriodEl) statsPeriodEl.textContent = "";
   if (resumenTrabajadoresEl) resumenTrabajadoresEl.innerHTML = "";
   if (totalPagarEl)          totalPagarEl.textContent = "0,00 €";
   if (facturacionBodyEl)     facturacionBodyEl.innerHTML = `<tr><td colspan="4" class="empty-cell">—</td></tr>`;
@@ -450,18 +466,38 @@ cancelEditBtn.addEventListener("click", () => {
    RENDER — totales globales + tabla + sidebar
 ═══════════════════════════════════════════════════ */
 function render() {
+  renderStats();
+  renderTabla();
+  renderSidebar();
+}
+
+/* ─── Stats con filtro de fecha ─── */
+function renderStats() {
+  const desde = statsDesdeEl?.value || "";
+  const hasta = statsHastaEl?.value || "";
+
   let ingresos = 0, gastos = 0;
   movimientos.forEach(m => {
     const imp = Number(m.importe || 0);
+    if (desde && m.fecha < desde) return;
+    if (hasta && m.fecha > hasta) return;
     if ((m.tipo === "Ingreso" || m.tipo === "Inicio de Caja") && !m.gratis) ingresos += imp;
     if (m.tipo === "Gasto") gastos += imp;
   });
+
   ingresosEl.textContent = eur(ingresos);
   gastosEl.textContent   = eur(gastos);
   balanceEl.textContent  = eur(ingresos - gastos);
 
-  renderTabla();
-  renderSidebar();
+  if (statsPeriodEl) {
+    if (desde || hasta) {
+      const d = desde ? new Date(desde).toLocaleDateString("es-ES") : "inicio";
+      const h = hasta ? new Date(hasta).toLocaleDateString("es-ES") : "hoy";
+      statsPeriodEl.textContent = `Período: ${d} → ${h}`;
+    } else {
+      statsPeriodEl.textContent = "Todos los movimientos";
+    }
+  }
 }
 
 /* ─── Tabla con filtros ─── */
