@@ -10,7 +10,7 @@ import {
   setPersistence, browserLocalPersistence
 } from "https://www.gstatic.com/firebasejs/10.12.4/firebase-auth.js";
 
-/* 🔥 CONFIG */
+/* ─── Firebase config ─────────────────────────────── */
 const firebaseConfig = {
   apiKey: "AIzaSyBmRXxzIOr3sevzlXQQDaWKlpEXEB7si1Y",
   authDomain: "peluqueria-eacca.firebaseapp.com",
@@ -20,224 +20,403 @@ const firebaseConfig = {
   appId: "1:104134229616:web:64673e422f16a682fafeb5"
 };
 
-const app = initializeApp(firebaseConfig);
-const db = getFirestore(app);
+const app  = initializeApp(firebaseConfig);
+const db   = getFirestore(app);
 const auth = getAuth(app);
 const provider = new GoogleAuthProvider();
 provider.setCustomParameters({ prompt: "select_account" });
 
-/* DOM */
-const viewToggleBtn = document.getElementById("viewToggleBtn");
+/* ═══════════════════════════════════════════════════
+   ADMIN DATA — localStorage
+═══════════════════════════════════════════════════ */
+const DEFAULTS = {
+  tipos:        ["Ingreso", "Gasto", "Inicio de Caja"],
+  conceptos:    ["Corte", "Inicio Caja"],
+  trabajadores: ["TR02", "TR03", "TR04", "TR05", "TR06"]
+};
 
-const loginBtn = document.getElementById("loginBtn");
-const logoutBtn = document.getElementById("logoutBtn");
-const userEmailEl = document.getElementById("userEmail");
+function getAdminData(key) {
+  try {
+    const raw = localStorage.getItem("admin_" + key);
+    if (raw) return JSON.parse(raw);
+  } catch (_) {}
+  return [...DEFAULTS[key]];
+}
+function saveAdminData(key, arr) {
+  localStorage.setItem("admin_" + key, JSON.stringify(arr));
+}
 
-const form = document.getElementById("form");
-const fechaEl = document.getElementById("fecha");
-const tipoEl = document.getElementById("tipo");
-const conceptoEl = document.getElementById("concepto");
-const trabajadorEl = document.getElementById("trabajador");
-const importeEl = document.getElementById("importe");
-const gratisEl = document.getElementById("gratis");
+/* ─── Poblar selects del formulario y filtros ─── */
+function populateFormSelects() {
+  const tipos        = getAdminData("tipos");
+  const conceptos    = getAdminData("conceptos");
+  const trabajadores = getAdminData("trabajadores");
 
-const submitBtn = document.getElementById("submitBtn");
-const cancelEditBtn = document.getElementById("cancelEditBtn");
+  tipoEl.innerHTML = tipos.map(t => `<option value="${t}">${t}</option>`).join("");
+  conceptoEl.innerHTML = conceptos.map(c => `<option value="${c}">${c}</option>`).join("");
+  trabajadorEl.innerHTML = `<option value="">—</option>` +
+    trabajadores.map(t => `<option value="${t}">${t}</option>`).join("");
 
-const tabla = document.getElementById("tabla");
-const ingresosEl = document.getElementById("ingresos");
-const gastosEl = document.getElementById("gastos");
-const balanceEl = document.getElementById("balance");
+  // Filtros (guardar selección actual)
+  const selTipo     = filtroTipoEl?.value     || "";
+  const selConcepto = filtroConceptoEl?.value  || "";
+  const selTrab     = filtroTrabajadorEl?.value || "";
 
-const mesFiltroEl = document.getElementById("mesFiltro");
-const resumenTrabajadoresEl = document.getElementById("resumenTrabajadores");
-const totalPagarEl = document.getElementById("totalPagar");
+  if (filtroTipoEl) {
+    filtroTipoEl.innerHTML = `<option value="">Todos</option>` +
+      tipos.map(t => `<option value="${t}"${t===selTipo?" selected":""}>${t}</option>`).join("");
+  }
+  if (filtroConceptoEl) {
+    filtroConceptoEl.innerHTML = `<option value="">Todos</option>` +
+      conceptos.map(c => `<option value="${c}"${c===selConcepto?" selected":""}>${c}</option>`).join("");
+  }
+  if (filtroTrabajadorEl) {
+    filtroTrabajadorEl.innerHTML = `<option value="">Todos</option>` +
+      trabajadores.map(t => `<option value="${t}"${t===selTrab?" selected":""}>${t}</option>`).join("");
+  }
+}
 
-const facturacionBodyEl = document.getElementById("facturacionBody");
-const totalFacturacionEl = document.getElementById("totalFacturacion");
-const totalNominaEl = document.getElementById("totalNomina");
-const totalDiferenciaEl = document.getElementById("totalDiferencia");
+/* ═══════════════════════════════════════════════════
+   TABS
+═══════════════════════════════════════════════════ */
+document.querySelectorAll(".tab-btn").forEach(btn => {
+  btn.addEventListener("click", () => {
+    document.querySelectorAll(".tab-btn").forEach(b => b.classList.remove("tab-btn--active"));
+    document.querySelectorAll(".tab-content").forEach(c => c.classList.remove("tab-content--active"));
+    btn.classList.add("tab-btn--active");
+    document.getElementById("tab-" + btn.dataset.tab).classList.add("tab-content--active");
+    if (btn.dataset.tab === "admin") renderAdminLists();
+  });
+});
+
+/* ═══════════════════════════════════════════════════
+   ADMIN — Listas
+═══════════════════════════════════════════════════ */
+function renderAdminList(key, ulId) {
+  const ul = document.getElementById(ulId);
+  if (!ul) return;
+  const items = getAdminData(key);
+  if (items.length === 0) {
+    ul.innerHTML = `<li class="admin-empty">Sin elementos</li>`;
+    return;
+  }
+  ul.innerHTML = items.map((item, i) => `
+    <li class="admin-item">
+      <span class="admin-item__name">${item}</span>
+      <div class="admin-item__actions">
+        <button class="btn btn--outline btn--sm" type="button"
+          data-key="${key}" data-index="${i}" data-action="edit">Editar</button>
+        <button class="btn btn--danger btn--sm" type="button"
+          data-key="${key}" data-index="${i}" data-action="delete">Borrar</button>
+      </div>
+    </li>
+  `).join("");
+}
+
+function renderAdminLists() {
+  renderAdminList("tipos",        "listaTipos");
+  renderAdminList("conceptos",    "listaConceptos");
+  renderAdminList("trabajadores", "listaTrabajadores");
+}
+
+function setupAddBtn(btnId, inputId, key, ulId) {
+  const btn   = document.getElementById(btnId);
+  const input = document.getElementById(inputId);
+  if (!btn || !input) return;
+
+  btn.addEventListener("click", () => {
+    const val = input.value.trim();
+    if (!val) { input.focus(); return; }
+    const items = getAdminData(key);
+    if (items.includes(val)) { alert(`"${val}" ya existe.`); return; }
+    items.push(val);
+    saveAdminData(key, items);
+    input.value = "";
+    renderAdminList(key, ulId);
+    populateFormSelects();
+  });
+  input.addEventListener("keydown", e => { if (e.key === "Enter") { e.preventDefault(); btn.click(); } });
+}
+
+setupAddBtn("btnAddTipo",        "nuevoTipo",        "tipos",        "listaTipos");
+setupAddBtn("btnAddConcepto",    "nuevoConcepto",    "conceptos",    "listaConceptos");
+setupAddBtn("btnAddTrabajador",  "nuevoTrabajador",  "trabajadores", "listaTrabajadores");
+
+["listaTipos", "listaConceptos", "listaTrabajadores"].forEach(ulId => {
+  const ul = document.getElementById(ulId);
+  if (!ul) return;
+  ul.addEventListener("click", e => {
+    const btn = e.target.closest("button");
+    if (!btn) return;
+    const { key, index, action } = btn.dataset;
+    const i = parseInt(index, 10);
+    if (action === "delete") {
+      const items = getAdminData(key);
+      if (!confirm(`¿Borrar "${items[i]}"?`)) return;
+      items.splice(i, 1);
+      saveAdminData(key, items);
+      renderAdminList(key, ulId);
+      populateFormSelects();
+    }
+    if (action === "edit") {
+      const items = getAdminData(key);
+      openModal(items[i], newVal => {
+        items[i] = newVal;
+        saveAdminData(key, items);
+        renderAdminList(key, ulId);
+        populateFormSelects();
+      });
+    }
+  });
+});
+
+/* ═══════════════════════════════════════════════════
+   MODAL
+═══════════════════════════════════════════════════ */
+const modal        = document.getElementById("adminModal");
+const modalInput   = document.getElementById("modalInput");
+const modalConfirm = document.getElementById("modalConfirm");
+const modalCancel  = document.getElementById("modalCancel");
+let modalCallback  = null;
+
+function openModal(currentVal, callback) {
+  modalInput.value = currentVal;
+  modalCallback = callback;
+  modal.style.display = "flex";
+  setTimeout(() => modalInput.focus(), 50);
+}
+function closeModal() {
+  modal.style.display = "none";
+  modalCallback = null;
+}
+modalConfirm.addEventListener("click", () => {
+  const val = modalInput.value.trim();
+  if (!val) { modalInput.focus(); return; }
+  if (modalCallback) modalCallback(val);
+  closeModal();
+});
+modalCancel.addEventListener("click", closeModal);
+modalInput.addEventListener("keydown", e => {
+  if (e.key === "Enter")  modalConfirm.click();
+  if (e.key === "Escape") closeModal();
+});
+modal.addEventListener("click", e => { if (e.target === modal) closeModal(); });
+
+/* ═══════════════════════════════════════════════════
+   DOM REFS — formulario caja
+═══════════════════════════════════════════════════ */
+const viewToggleBtn   = document.getElementById("viewToggleBtn");
+const loginBtn        = document.getElementById("loginBtn");
+const logoutBtn       = document.getElementById("logoutBtn");
+const userEmailEl     = document.getElementById("userEmail");
+
+const form            = document.getElementById("form");
+const fechaEl         = document.getElementById("fecha");
+const tipoEl          = document.getElementById("tipo");
+const conceptoEl      = document.getElementById("concepto");
+const trabajadorEl    = document.getElementById("trabajador");
+const importeEl       = document.getElementById("importe");
+const gratisEl        = document.getElementById("gratis");
+const submitBtn       = document.getElementById("submitBtn");
+const cancelEditBtn   = document.getElementById("cancelEditBtn");
+
+const tabla           = document.getElementById("tabla");
+const ingresosEl      = document.getElementById("ingresos");
+const gastosEl        = document.getElementById("gastos");
+const balanceEl       = document.getElementById("balance");
+
+const mesFiltroEl            = document.getElementById("mesFiltro");
+const resumenTrabajadoresEl  = document.getElementById("resumenTrabajadores");
+const totalPagarEl           = document.getElementById("totalPagar");
+const facturacionBodyEl      = document.getElementById("facturacionBody");
+const totalFacturacionEl     = document.getElementById("totalFacturacion");
+const totalNominaEl          = document.getElementById("totalNomina");
+const totalDiferenciaEl      = document.getElementById("totalDiferencia");
+
+// Filtros tabla
+const filtroDesdeEl      = document.getElementById("filtroDesde");
+const filtroHastaEl      = document.getElementById("filtroHasta");
+const filtroTipoEl       = document.getElementById("filtroTipo");
+const filtroConceptoEl   = document.getElementById("filtroConcepto");
+const filtroTrabajadorEl = document.getElementById("filtroTrabajador");
+const btnLimpiarFiltros  = document.getElementById("btnLimpiarFiltros");
+const filtroContadorEl   = document.getElementById("filtroContador");
 
 let movimientos = [];
 let unsubscribe = null;
-let editId = null;
+let editId      = null;
 
-/* Helpers */
-function fechaHoy() {
-  return new Date().toISOString().split("T")[0];
-}
+/* Poblar selects al cargar */
+populateFormSelects();
+
+/* ─── Escuchar cambios en filtros ─── */
+[filtroDesdeEl, filtroHastaEl, filtroTipoEl, filtroConceptoEl, filtroTrabajadorEl].forEach(el => {
+  el?.addEventListener("change", () => renderTabla());
+});
+
+btnLimpiarFiltros?.addEventListener("click", () => {
+  if (filtroDesdeEl)      filtroDesdeEl.value      = "";
+  if (filtroHastaEl)      filtroHastaEl.value      = "";
+  if (filtroTipoEl)       filtroTipoEl.value       = "";
+  if (filtroConceptoEl)   filtroConceptoEl.value   = "";
+  if (filtroTrabajadorEl) filtroTrabajadorEl.value = "";
+  renderTabla();
+});
+
+/* ═══════════════════════════════════════════════════
+   HELPERS
+═══════════════════════════════════════════════════ */
+function fechaHoy() { return new Date().toISOString().split("T")[0]; }
+
 function eur(n) {
-  return (Number(n || 0)).toFixed(2) + " €";
+  return (Number(n || 0)).toLocaleString("es-ES", {
+    minimumFractionDigits: 2, maximumFractionDigits: 2
+  }) + " €";
 }
-function mesKey(fecha) {
-  return (fecha || "").slice(0, 7);
-}
+
+function mesKey(fecha) { return (fecha || "").slice(0, 7); }
+
 function netoMovimiento(m) {
-  // Nómina solo en ingresos
   if (m.tipo !== "Ingreso") return 0;
   const imp = Number(m.importe || 0);
   return m.gratis ? imp : imp * 0.4;
 }
 function facturacionMovimiento(m) {
-  // Facturación: ingresos NO gratis
-  if (m.tipo !== "Ingreso") return 0;
-  if (m.gratis) return 0;
+  if (m.tipo !== "Ingreso" || m.gratis) return 0;
   return Number(m.importe || 0);
 }
 function requireUser() {
-  if (!auth.currentUser) {
-    alert("Primero inicia sesión con Google.");
-    return false;
-  }
+  if (!auth.currentUser) { alert("Primero inicia sesión con Google."); return false; }
   return true;
 }
 
-/* ===== Vista PC/Móvil (forzada) ===== */
+function tipoBadge(tipo) {
+  const map = {
+    "Ingreso":       "badge--ingreso",
+    "Gasto":         "badge--gasto",
+    "Inicio de Caja":"badge--inicio"
+  };
+  const cls = map[tipo] || "badge--default";
+  return `<span class="badge ${cls}">${tipo}</span>`;
+}
+
+/* ═══════════════════════════════════════════════════
+   VISTA PC / MÓVIL
+═══════════════════════════════════════════════════ */
 function applyViewMode(mode) {
   document.body.classList.remove("force-mobile", "force-desktop");
-  if (mode === "mobile") document.body.classList.add("force-mobile");
+  if (mode === "mobile")  document.body.classList.add("force-mobile");
   if (mode === "desktop") document.body.classList.add("force-desktop");
-  if (viewToggleBtn) viewToggleBtn.textContent = `Vista: ${mode === "mobile" ? "Móvil" : "PC"}`;
+  if (viewToggleBtn) viewToggleBtn.textContent = mode === "mobile" ? "🖥" : "📱";
   localStorage.setItem("viewMode", mode);
 }
-
 (function initViewMode() {
   const saved = localStorage.getItem("viewMode");
-  if (saved === "mobile" || saved === "desktop") {
-    applyViewMode(saved);
-  } else {
-    // Por defecto: PC
-    applyViewMode("desktop");
-  }
+  applyViewMode(saved === "mobile" ? "mobile" : "desktop");
 })();
+viewToggleBtn?.addEventListener("click", () => {
+  applyViewMode(document.body.classList.contains("force-mobile") ? "desktop" : "mobile");
+});
 
-if (viewToggleBtn) {
-  viewToggleBtn.addEventListener("click", () => {
-    const isMobile = document.body.classList.contains("force-mobile");
-    applyViewMode(isMobile ? "desktop" : "mobile");
-  });
-}
-
-/* ===== Init inputs ===== */
+/* ═══════════════════════════════════════════════════
+   INIT INPUTS
+═══════════════════════════════════════════════════ */
 if (fechaEl) fechaEl.value = fechaHoy();
-
 if (mesFiltroEl) {
   const d = new Date();
-  const ym = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
-  mesFiltroEl.value = ym;
+  mesFiltroEl.value = `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,"0")}`;
   mesFiltroEl.addEventListener("change", () => renderSidebar());
 }
 
-/* ===== Auth persistence ===== */
+/* ═══════════════════════════════════════════════════
+   AUTH
+═══════════════════════════════════════════════════ */
 try {
   await setPersistence(auth, browserLocalPersistence);
-  console.log("✅ Auth persistence: browserLocalPersistence");
-} catch (e) {
-  console.error("❌ setPersistence error:", e);
-}
+} catch (e) { console.error("setPersistence:", e); }
 
-/* ===== Login / Logout ===== */
-if (loginBtn) {
-  loginBtn.addEventListener("click", async () => {
-    try {
-      await signInWithPopup(auth, provider);
-    } catch (e) {
-      console.error("Popup login error:", e);
-      if (e?.code === "auth/popup-blocked" || e?.code === "auth/cancelled-popup-request") {
-        alert("Popup bloqueado. Probando con redirect…");
-        await signInWithRedirect(auth, provider);
-      } else {
-        alert("LOGIN ERROR: " + (e.code || e.message));
-      }
+loginBtn?.addEventListener("click", async () => {
+  try {
+    await signInWithPopup(auth, provider);
+  } catch (e) {
+    if (e?.code === "auth/popup-blocked" || e?.code === "auth/cancelled-popup-request") {
+      await signInWithRedirect(auth, provider);
+    } else {
+      alert("LOGIN ERROR: " + (e.code || e.message));
     }
-  });
-}
+  }
+});
 
-if (logoutBtn) {
-  logoutBtn.addEventListener("click", async () => {
-    await signOut(auth);
-  });
-}
+logoutBtn?.addEventListener("click", () => signOut(auth));
 
-/* ===== Auth state ===== */
-onAuthStateChanged(auth, (user) => {
-  console.log("🔄 AUTH STATE:", user ? user.email : "NO USER");
-
+onAuthStateChanged(auth, user => {
   if (!user) {
     if (userEmailEl) userEmailEl.textContent = "";
-    if (loginBtn) loginBtn.style.display = "inline-block";
+    if (loginBtn)  loginBtn.style.display  = "inline-flex";
     if (logoutBtn) logoutBtn.style.display = "none";
-
     if (unsubscribe) unsubscribe();
     unsubscribe = null;
-
     movimientos = [];
-    if (tabla) tabla.innerHTML = `<tr><td colspan="8">Inicia sesión para ver los movimientos.</td></tr>`;
-    if (ingresosEl) ingresosEl.textContent = "0 €";
-    if (gastosEl) gastosEl.textContent = "0 €";
-    if (balanceEl) balanceEl.textContent = "0 €";
-
-    if (resumenTrabajadoresEl) resumenTrabajadoresEl.innerHTML = "";
-    if (totalPagarEl) totalPagarEl.textContent = "0 €";
-
-    if (facturacionBodyEl) facturacionBodyEl.innerHTML = `<tr><td colspan="4">—</td></tr>`;
-    if (totalFacturacionEl) totalFacturacionEl.textContent = "0 €";
-    if (totalNominaEl) totalNominaEl.textContent = "0 €";
-    if (totalDiferenciaEl) totalDiferenciaEl.textContent = "0 €";
+    resetUI();
     return;
   }
-
   if (userEmailEl) userEmailEl.textContent = user.email || "";
-  if (loginBtn) loginBtn.style.display = "none";
-  if (logoutBtn) logoutBtn.style.display = "inline-block";
-
+  if (loginBtn)  loginBtn.style.display  = "none";
+  if (logoutBtn) logoutBtn.style.display = "inline-flex";
   iniciarRealtime();
 });
+
+function resetUI() {
+  if (tabla) tabla.innerHTML = `<tr><td colspan="8" class="empty-cell">Inicia sesión para ver los movimientos.</td></tr>`;
+  if (ingresosEl) ingresosEl.textContent = "0,00 €";
+  if (gastosEl)   gastosEl.textContent   = "0,00 €";
+  if (balanceEl)  balanceEl.textContent  = "0,00 €";
+  if (resumenTrabajadoresEl) resumenTrabajadoresEl.innerHTML = "";
+  if (totalPagarEl)          totalPagarEl.textContent = "0,00 €";
+  if (facturacionBodyEl)     facturacionBodyEl.innerHTML = `<tr><td colspan="4" class="empty-cell">—</td></tr>`;
+  if (totalFacturacionEl)    totalFacturacionEl.textContent = "0,00 €";
+  if (totalNominaEl)         totalNominaEl.textContent = "0,00 €";
+  if (totalDiferenciaEl)     totalDiferenciaEl.textContent = "0,00 €";
+  if (filtroContadorEl)      filtroContadorEl.textContent = "";
+}
 
 function iniciarRealtime() {
   if (unsubscribe) unsubscribe();
   const q = query(collection(db, "movimientos"), orderBy("fecha", "desc"));
-
-  unsubscribe = onSnapshot(
-    q,
-    (snap) => {
+  unsubscribe = onSnapshot(q,
+    snap => {
       movimientos = snap.docs.map(d => ({ id: d.id, ...d.data() }));
       render();
     },
-    (err) => {
-      console.error("FIRESTORE ERROR:", err);
-      alert("Firestore: " + (err.code || err.message));
-    }
+    err => { console.error("FIRESTORE:", err); alert("Firestore: " + (err.code || err.message)); }
   );
 }
 
-/* ===== Form submit ===== */
-form.addEventListener("submit", async (e) => {
+/* ═══════════════════════════════════════════════════
+   FORM SUBMIT
+═══════════════════════════════════════════════════ */
+form.addEventListener("submit", async e => {
   e.preventDefault();
   if (!requireUser()) return;
 
-  const tipo = tipoEl.value;
+  const tipo      = tipoEl.value;
   const trabajador = trabajadorEl.value;
-
-  if (tipo === "Ingreso" && trabajador === "") {
-    alert("Debes seleccionar un trabajador para un Ingreso.");
+  if (tipo === "Ingreso" && !trabajador) {
+    alert("Selecciona un trabajador para un Ingreso.");
     return;
   }
 
   const importe = Math.abs(parseFloat(importeEl.value));
-  if (Number.isNaN(importe)) {
-    alert("Importe no válido");
-    return;
-  }
+  if (Number.isNaN(importe)) { alert("Importe no válido"); return; }
 
   const mov = {
-    fecha: fechaEl.value,
-    tipo: tipoEl.value,
-    concepto: conceptoEl.value,
-    trabajador: trabajadorEl.value || "",
-    gratis: !!gratisEl.checked,
-    importe: Number(importe),
-    updatedAt: serverTimestamp()
+    fecha:      fechaEl.value,
+    tipo,
+    concepto:   conceptoEl.value,
+    trabajador: trabajador || "",
+    gratis:     !!gratisEl.checked,
+    importe:    Number(importe),
+    updatedAt:  serverTimestamp()
   };
 
   try {
@@ -247,16 +426,13 @@ form.addEventListener("submit", async (e) => {
       submitBtn.textContent = "Añadir";
       cancelEditBtn.style.display = "none";
     } else {
-      await addDoc(collection(db, "movimientos"), {
-        ...mov,
-        createdAt: serverTimestamp()
-      });
+      await addDoc(collection(db, "movimientos"), { ...mov, createdAt: serverTimestamp() });
     }
-
     form.reset();
     fechaEl.value = fechaHoy();
+    populateFormSelects();
   } catch (err) {
-    console.error("SAVE ERROR:", err);
+    console.error("SAVE:", err);
     alert("No se pudo guardar: " + (err.code || err.message));
   }
 });
@@ -265,58 +441,95 @@ cancelEditBtn.addEventListener("click", () => {
   editId = null;
   form.reset();
   fechaEl.value = fechaHoy();
+  populateFormSelects();
   submitBtn.textContent = "Añadir";
   cancelEditBtn.style.display = "none";
 });
 
-/* ===== Render main table + totals ===== */
+/* ═══════════════════════════════════════════════════
+   RENDER — totales globales + tabla + sidebar
+═══════════════════════════════════════════════════ */
 function render() {
-  tabla.innerHTML = "";
-
-  let ingresos = 0;
-  let gastos = 0;
-
-  movimientos.forEach((m) => {
+  let ingresos = 0, gastos = 0;
+  movimientos.forEach(m => {
     const imp = Number(m.importe || 0);
-
     if ((m.tipo === "Ingreso" || m.tipo === "Inicio de Caja") && !m.gratis) ingresos += imp;
     if (m.tipo === "Gasto") gastos += imp;
-
-    const neto = netoMovimiento(m);
-
-    tabla.innerHTML += `
-      <tr>
-        <td>${m.fecha || ""}</td>
-        <td>${m.tipo || ""}</td>
-        <td>${m.concepto || ""}</td>
-        <td>${m.trabajador || "—"}</td>
-        <td>${m.gratis ? "Sí" : "No"}</td>
-        <td class="right">${eur(imp)}</td>
-        <td class="right">${neto ? eur(neto) : "—"}</td>
-        <td class="right">
-          <button class="btn btn--secondary" type="button" data-action="edit" data-id="${m.id}">Editar</button>
-          <button class="btn" style="border-color: rgba(239,68,68,.35); background: rgba(239,68,68,.14);" type="button" data-action="delete" data-id="${m.id}">Borrar</button>
-        </td>
-      </tr>
-    `;
   });
-
   ingresosEl.textContent = eur(ingresos);
-  gastosEl.textContent = eur(gastos);
-  balanceEl.textContent = eur(ingresos - gastos);
+  gastosEl.textContent   = eur(gastos);
+  balanceEl.textContent  = eur(ingresos - gastos);
 
+  renderTabla();
   renderSidebar();
 }
 
+/* ─── Tabla con filtros ─── */
+function getFiltros() {
+  return {
+    desde:      filtroDesdeEl?.value      || "",
+    hasta:      filtroHastaEl?.value      || "",
+    tipo:       filtroTipoEl?.value       || "",
+    concepto:   filtroConceptoEl?.value   || "",
+    trabajador: filtroTrabajadorEl?.value || ""
+  };
+}
+
+function filtrarMovimientos() {
+  const f = getFiltros();
+  return movimientos.filter(m => {
+    if (f.desde      && m.fecha < f.desde)      return false;
+    if (f.hasta      && m.fecha > f.hasta)      return false;
+    if (f.tipo       && m.tipo       !== f.tipo)       return false;
+    if (f.concepto   && m.concepto   !== f.concepto)   return false;
+    if (f.trabajador && m.trabajador !== f.trabajador) return false;
+    return true;
+  });
+}
+
+function renderTabla() {
+  const filtered = filtrarMovimientos();
+
+  // Contador
+  if (filtroContadorEl) {
+    const hayFiltros = Object.values(getFiltros()).some(v => v !== "");
+    filtroContadorEl.textContent = hayFiltros
+      ? `${filtered.length} de ${movimientos.length} movimientos`
+      : `${movimientos.length} movimientos`;
+  }
+
+  if (filtered.length === 0) {
+    tabla.innerHTML = `<tr><td colspan="8" class="empty-cell">Sin movimientos para los filtros aplicados.</td></tr>`;
+    return;
+  }
+
+  tabla.innerHTML = filtered.map(m => {
+    const imp  = Number(m.importe || 0);
+    const neto = netoMovimiento(m);
+    return `
+      <tr>
+        <td>${m.fecha || ""}</td>
+        <td>${tipoBadge(m.tipo)}</td>
+        <td>${m.concepto || ""}</td>
+        <td>${m.trabajador || "—"}</td>
+        <td>${m.gratis ? '<span class="pill-gratis">Gratis</span>' : ""}</td>
+        <td class="num">${eur(imp)}</td>
+        <td class="num">${neto ? eur(neto) : "—"}</td>
+        <td class="num" style="white-space:nowrap">
+          <button class="btn btn--outline btn--sm" data-action="edit"   data-id="${m.id}">Editar</button>
+          <button class="btn btn--danger  btn--sm" data-action="delete" data-id="${m.id}">Borrar</button>
+        </td>
+      </tr>
+    `;
+  }).join("");
+}
+
 /* Delegación editar/borrar */
-tabla.addEventListener("click", async (e) => {
+tabla.addEventListener("click", async e => {
   const btn = e.target.closest("button");
   if (!btn) return;
-
-  const action = btn.dataset.action;
-  const id = btn.dataset.id;
+  const { action, id } = btn.dataset;
   if (!action || !id) return;
-
   if (!requireUser()) return;
 
   if (action === "delete") {
@@ -327,111 +540,99 @@ tabla.addEventListener("click", async (e) => {
   if (action === "edit") {
     const m = movimientos.find(x => x.id === id);
     if (!m) return;
-
-    fechaEl.value = m.fecha || fechaHoy();
-    tipoEl.value = m.tipo || "Ingreso";
-    conceptoEl.value = m.concepto || "Corte";
+    fechaEl.value      = m.fecha      || fechaHoy();
+    tipoEl.value       = m.tipo       || "Ingreso";
+    conceptoEl.value   = m.concepto   || "";
     trabajadorEl.value = m.trabajador || "";
-    importeEl.value = Number(m.importe || 0);
-    gratisEl.checked = !!m.gratis;
+    importeEl.value    = Number(m.importe || 0);
+    gratisEl.checked   = !!m.gratis;
 
     editId = id;
     submitBtn.textContent = "Guardar cambios";
-    cancelEditBtn.style.display = "inline-block";
+    cancelEditBtn.style.display = "inline-flex";
+
+    // Cambiar a pestaña Caja
+    document.querySelectorAll(".tab-btn").forEach(b => b.classList.remove("tab-btn--active"));
+    document.querySelectorAll(".tab-content").forEach(c => c.classList.remove("tab-content--active"));
+    document.querySelector('[data-tab="caja"]').classList.add("tab-btn--active");
+    document.getElementById("tab-caja").classList.add("tab-content--active");
     window.scrollTo({ top: 0, behavior: "smooth" });
   }
 });
 
-/* ===== Sidebar: Pagos + Facturación ===== */
+/* ─── Sidebar ─── */
 function renderSidebar() {
-  const mes = mesFiltroEl?.value || "";
-  const pagos = {};        // nómina por trabajador
-  const facts = {};        // facturación por trabajador
-  let totalNomina = 0;
-  let totalFact = 0;
+  const mes  = mesFiltroEl?.value || "";
+  const pagos = {}, facts = {};
+  let totalNomina = 0, totalFact = 0;
 
-  movimientos.forEach((m) => {
-    if (m.tipo !== "Ingreso") return;
-    if (!m.trabajador) return;
+  movimientos.forEach(m => {
+    if (m.tipo !== "Ingreso" || !m.trabajador) return;
     if (mes && mesKey(m.fecha) !== mes) return;
-
-    const neto = netoMovimiento(m);
-    const fact = facturacionMovimiento(m);
-
-    pagos[m.trabajador] = (pagos[m.trabajador] || 0) + neto;
-    facts[m.trabajador] = (facts[m.trabajador] || 0) + fact;
+    pagos[m.trabajador] = (pagos[m.trabajador] || 0) + netoMovimiento(m);
+    facts[m.trabajador] = (facts[m.trabajador] || 0) + facturacionMovimiento(m);
   });
 
   const workers = Array.from(new Set([...Object.keys(pagos), ...Object.keys(facts)])).sort();
 
-  /* Pagos (listado) */
   resumenTrabajadoresEl.innerHTML = "";
   if (workers.length === 0) {
-    resumenTrabajadoresEl.innerHTML = `<div class="worker"><div><b>Sin datos</b><small>No hay ingresos en ese mes</small></div><div>—</div></div>`;
-    totalPagarEl.textContent = "0 €";
+    resumenTrabajadoresEl.innerHTML = `<div class="worker-row"><span class="worker-row__name" style="color:var(--text2)">Sin datos</span></div>`;
+    totalPagarEl.textContent = "0,00 €";
   } else {
-    workers.forEach((t) => {
+    workers.forEach(t => {
       const p = pagos[t] || 0;
       totalNomina += p;
       resumenTrabajadoresEl.innerHTML += `
-        <div class="worker">
-          <div><b>${t}</b><small>${mes || "Todos los meses"}</small></div>
-          <div><b>${eur(p)}</b></div>
-        </div>
-      `;
+        <div class="worker-row">
+          <span class="worker-row__name">${t}</span>
+          <span class="worker-row__val">${eur(p)}</span>
+        </div>`;
     });
     totalPagarEl.textContent = eur(totalNomina);
   }
 
-  /* Facturación table */
   facturacionBodyEl.innerHTML = "";
   if (workers.length === 0) {
-    facturacionBodyEl.innerHTML = `<tr><td colspan="4">—</td></tr>`;
-    totalFacturacionEl.textContent = "0 €";
-    totalNominaEl.textContent = "0 €";
-    totalDiferenciaEl.textContent = "0 €";
+    facturacionBodyEl.innerHTML = `<tr><td colspan="4" class="empty-cell">—</td></tr>`;
+    totalFacturacionEl.textContent = "0,00 €";
+    totalNominaEl.textContent      = "0,00 €";
+    totalDiferenciaEl.textContent  = "0,00 €";
     return;
   }
 
-  workers.forEach((t) => {
+  workers.forEach(t => {
     const f = facts[t] || 0;
-    const n = pagos[t] || 0;
-    const d = f - n;
-
+    const n = pagos[t]  || 0;
     totalFact += f;
-
     facturacionBodyEl.innerHTML += `
       <tr>
         <td>${t}</td>
-        <td class="right">${eur(f)}</td>
-        <td class="right">${eur(n)}</td>
-        <td class="right"><b>${eur(d)}</b></td>
-      </tr>
-    `;
+        <td>${eur(f)}</td>
+        <td>${eur(n)}</td>
+        <td><b>${eur(f - n)}</b></td>
+      </tr>`;
   });
 
   totalFacturacionEl.textContent = eur(totalFact);
-  totalNominaEl.textContent = eur(totalNomina);
-  totalDiferenciaEl.textContent = eur(totalFact - totalNomina);
+  totalNominaEl.textContent      = eur(totalNomina);
+  totalDiferenciaEl.textContent  = eur(totalFact - totalNomina);
 }
 
-/* ===== Excel export ===== */
+/* ═══════════════════════════════════════════════════
+   EXCEL EXPORT
+═══════════════════════════════════════════════════ */
 window.descargarExcel = function () {
-  const data = movimientos.map((m) => {
-    const imp = Number(m.importe || 0);
-    const neto = netoMovimiento(m);
-
-    return {
-      Fecha: m.fecha || "",
-      Tipo: m.tipo || "",
-      Concepto: m.concepto || "",
-      Trabajador: m.trabajador || "",
-      Gratis: m.gratis ? "Sí" : "No",
-      Importe: imp.toFixed(2).replace(".", ","),
-      Neto: neto ? neto.toFixed(2).replace(".", ",") : ""
-    };
-  });
-
+  const filtered = filtrarMovimientos();
+  const data = filtered.map(m => ({
+    Fecha:      m.fecha || "",
+    Tipo:       m.tipo  || "",
+    Concepto:   m.concepto   || "",
+    Trabajador: m.trabajador || "",
+    Gratis:     m.gratis ? "Sí" : "No",
+    Importe:    Number(m.importe || 0).toFixed(2).replace(".", ","),
+    Neto:       netoMovimiento(m) ? netoMovimiento(m).toFixed(2).replace(".", ",") : ""
+  }));
   const ws = XLSX.utils.json_to_sheet(data);
   const wb = XLSX.utils.book_new();
   XLSX.utils.book_append_sheet(wb, ws, "Caja");
