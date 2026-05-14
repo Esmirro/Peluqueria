@@ -82,20 +82,32 @@
         </section>
 
         <!-- STATS -->
-        <div class="stats-row">
-          <div class="stat-chip stat-chip--green">
-            <span class="stat-chip__label">Ingresos</span>
-            <span class="stat-chip__val" id="ingresos">0,00 €</span>
+        <section class="card stats-card">
+          <div class="card__head card__head--row">
+            <span class="card__title">Resumen económico</span>
+            <div class="stats-filters">
+              <input type="date" id="statsDesde" class="stats-date-input" title="Desde" />
+              <span class="stats-sep">—</span>
+              <input type="date" id="statsHasta" class="stats-date-input" title="Hasta" />
+              <button class="btn btn--ghost btn--sm" id="btnLimpiarStats" type="button">✕</button>
+            </div>
           </div>
-          <div class="stat-chip stat-chip--red">
-            <span class="stat-chip__label">Gastos</span>
-            <span class="stat-chip__val" id="gastos">0,00 €</span>
+          <div class="stats-row">
+            <div class="stat-chip stat-chip--green">
+              <span class="stat-chip__label">Ingresos</span>
+              <span class="stat-chip__val" id="ingresos">0,00 €</span>
+            </div>
+            <div class="stat-chip stat-chip--red">
+              <span class="stat-chip__label">Gastos</span>
+              <span class="stat-chip__val" id="gastos">0,00 €</span>
+            </div>
+            <div class="stat-chip stat-chip--blue">
+              <span class="stat-chip__label">Balance</span>
+              <span class="stat-chip__val" id="balance">0,00 €</span>
+            </div>
           </div>
-          <div class="stat-chip stat-chip--blue">
-            <span class="stat-chip__label">Balance</span>
-            <span class="stat-chip__val" id="balance">0,00 €</span>
-          </div>
-        </div>
+          <div class="stats-period" id="statsPeriod"></div>
+        </section>
 
         <!-- SIDEBAR PAGOS -->
         <section class="card">
